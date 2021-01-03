@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "rs-src/getting-started",
+    "rs-src/taming-the-network",
+    "rs-src/seeking-consensus",
+]

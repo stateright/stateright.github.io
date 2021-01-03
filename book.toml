@@ -1,0 +1,13 @@
+[book]
+authors = ["Jonathan Nadal"]
+language = "en"
+multilingual = false
+src = "md-src"
+title = "Building Distributed Systems With Stateright"
+
+[build]
+build-dir = "docs"
+
+[output.html]
+cname = "www.stateright.rs"
+git-repository-url = "https://github.com/stateright/stateright.github.io"
