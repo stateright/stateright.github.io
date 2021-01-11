@@ -645,7 +645,7 @@ for the network dropping messages anyway, so generally speaking this
 tradeoff only impacts performance. Still, throughput can be improved by
 adding a &quot;sliding window&quot; buffer on the server side to minimize dropped
 messages. See if you can implement that.</li>
-<li><strong>Lossless Link</strong>: Another technique for minimizing message loss is to have
+<li><strong>Lossless Link</strong>: One technique for minimizing message loss is to have
 the client also maintain a buffer of outgoing messages, and the client
 periodically resends messages that have not been acknowledged by the
 recipient within a particular timeout period. TCP for example does this for
@@ -792,7 +792,9 @@ implementing distributed systems.</p>
             ],
             client_count: 3,
             .. Default::default()
-        }.into_model().checker().spawn_dfs().join();
+        }.into_model().checker()
+        .spawn_dfs().join();     // TRY IT: Comment out this line, and uncomment
+        //.serve(&quot;0:3000&quot;);      //         the next to load Stateright Explorer.
         //checker.assert_properties(); // TRY IT: Uncomment this line, and the test will fail.
         checker.assert_discovery(&quot;linearizable&quot;, vec![
             Deliver { src: Id::from(4), dst: Id::from(0), msg: Put(4, 'C') },
@@ -810,6 +812,46 @@ implementing distributed systems.</p>
             Deliver { src: Id::from(1), dst: Id::from(4), msg: GetOk(8, 'B') },
         ]);
 </code></pre>
+<h2><a class="header" href="#stateright-explorer" id="stateright-explorer">Stateright Explorer</a></h2>
+<p>It's not immediatley clear why the sequence of steps identified by Stateright
+violates linearizability. Luckily Stateright includes a web UI that can help
+you understand scenarios such as this one.</p>
+<p>Stateright Explorer is started by calling
+<a href="https://docs.rs/stateright/latest/stateright/struct.CheckerBuilder.html#method.serve"><code>serve(...)</code></a>.
+You can easily do this by following the directions in the first <code>// TRY IT</code> line,
+which will suspend the test when it is next run, allowing you to load
+<code>http://localhost:3000</code> in your web browser to debug.</p>
+<blockquote>
+<p><strong>Tip</strong>: Model checking with Stateright Explorer is breadth-first as that
+tends to find shorter discovery paths than depth-first search. One downside of
+this approach is that breadth-first search consumes more memory, so Explorer
+works best with relatively small state spaces (hundreds of thousands of states
+rather than millions of states, for example).</p>
+</blockquote>
+<p>When you load Stateright Explorer, you'll see the checker status in the upper
+left corner. Within a few seconds the checker should add <code>&quot;linearizable&quot; counterexample</code> to its list of discoveries.</p>
+<p><img src="seeking-consensus.explorer.png" alt="Stateright Explorer on load" /></p>
+<p>Click that link to load the discovery.</p>
+<p><img src="seeking-consensus.explorer2.png" alt="Stateright Explorer after clicking the link" /></p>
+<p>The first thing you might notice is the
+sequence diagram.</p>
+<p><img src="seeking-consensus.sequence.png" alt="sequence diagram for the linearizability violation" /></p>
+<p>Tracing backwards from the last event, we can see why linearizability is
+violated:</p>
+<ol>
+<li><code>GetOk(8, 'B')</code> indicates that <code>'B'</code> was the earliest write to finish before
+this read.</li>
+<li><code>PutOk(4)</code> was in response to the long running <code>Put(4, 'C')</code> operation,
+indicating that the value <code>'C'</code> must have been written at some point between
+invocation and response.</li>
+<li><code>GetOk(6, 'A')</code> indicates that <code>'A'</code> was the earliest write to finish before
+this read.</li>
+</ol>
+<p>We don't have to trace any further back, as those observations above highlight
+the anomaly: <code>'A'</code> had been the most recent write, then <code>'C'</code> may or may not
+have been written next (as the concurrency allows different linearizations),
+and finally <code>'B'</code> was read. No linearization of concurrent operations can
+reconcile this anomaly, so the protocol is not linearizable. QED.</p>
 <h2><a class="header" href="#complete-implementation" id="complete-implementation">Complete Implementation</a></h2>
 <p>Here is the complete implementation for <code>main.rs</code>:</p>
 <pre><code class="language-rust ignore noplayground">
@@ -943,7 +985,9 @@ mod test {
             ],
             client_count: 3,
             .. Default::default()
-        }.into_model().checker().spawn_dfs().join();
+        }.into_model().checker()
+        .spawn_dfs().join();     // TRY IT: Comment out this line, and uncomment
+        //.serve(&quot;0:3000&quot;);      //         the next to load Stateright Explorer.
         //checker.assert_properties(); // TRY IT: Uncomment this line, and the test will fail.
         checker.assert_discovery(&quot;linearizable&quot;, vec![
             Deliver { src: Id::from(4), dst: Id::from(0), msg: Put(4, 'C') },
@@ -982,23 +1026,20 @@ fn main() {
 
 </code></pre>
 <h2><a class="header" href="#suggested-exercise" id="suggested-exercise">Suggested Exercise</a></h2>
-<p>Uncomment the commented lines in the tests to cause them to fail, and see if
-you can amend the actor implementation to make the tests pass. Do not get too
-frustrated if you are unable to do so, as the next chapter will provide a
-solution, and you may be surprised by its complexity if you are new to
-implementing distributed system protocols.</p>
-<p>Tips:</p>
-<ul>
-<li>Use <code>cargo test --release</code> when running the tests for dramatically better
-model checking performance. Running tests without that flag may result in
-significant delays.</li>
-<li>Read the <a href="https://docs.rs/stateright/latest/stateright/struct.CheckerBuilder.html#method.serve">API docs for Stateright
+<p>Uncomment the second <code>// TRY IT</code> line to cause the test to fail, delete the
+linearizability counterexample assertion since it may not longer apply, and see
+if you can amend the actor implementation to make the test pass. The next
+chapter will provide a solution, but going through the exercise of trying to
+design a solution youself will help convey how subtle bugs can be with
+distributed protocols, and hopefully it will demonstrate why Stateright is so
+useful for this problem space.</p>
+<blockquote>
+<p><strong>Tip</strong>: use <code>cargo test --release</code> when running the tests for dramatically
+better model checking performance. Running tests without that flag may result
+in significant delays. Also, try using <a href="https://docs.rs/stateright/latest/stateright/struct.CheckerBuilder.html#method.serve">Stateright
 Explorer</a>
-to get an early preview of a powerful tool that will be fully introduced in a
-later chapter. See if you can use this to help debug your revised
-implementation. <em>Hint</em>: you can start Stateright Explorer by temporarily replacing
-<code>spawn_dfs().join()</code> with <code>serve(&quot;localhost:8000&quot;)</code> for example.</li>
-</ul>
+for debugging as needed.</p>
+</blockquote>
 <h2><a class="header" href="#summary-2" id="summary-2">Summary</a></h2>
 <p>This chapter introduced replication, and Stateright was able to find a bug in
 our replication protocol. The next chapter will introduce a more sophisticated

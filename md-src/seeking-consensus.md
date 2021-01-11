@@ -83,6 +83,56 @@ implementing distributed systems.
 {{#include ../rs-src/seeking-consensus/src/main.rs:test}}
 ```
 
+## Stateright Explorer
+
+It's not immediatley clear why the sequence of steps identified by Stateright
+violates linearizability. Luckily Stateright includes a web UI that can help
+you understand scenarios such as this one.
+
+Stateright Explorer is started by calling
+[`serve(...)`](https://docs.rs/stateright/latest/stateright/struct.CheckerBuilder.html#method.serve).
+You can easily do this by following the directions in the first `// TRY IT` line,
+which will suspend the test when it is next run, allowing you to load
+`http://localhost:3000` in your web browser to debug.
+
+> **Tip**: Model checking with Stateright Explorer is breadth-first as that
+tends to find shorter discovery paths than depth-first search. One downside of
+this approach is that breadth-first search consumes more memory, so Explorer
+works best with relatively small state spaces (hundreds of thousands of states
+rather than millions of states, for example).
+
+When you load Stateright Explorer, you'll see the checker status in the upper
+left corner. Within a few seconds the checker should add `"linearizable"
+counterexample` to its list of discoveries.
+
+![Stateright Explorer on load](seeking-consensus.explorer.png)
+
+Click that link to load the discovery.
+
+![Stateright Explorer after clicking the link](seeking-consensus.explorer2.png)
+
+The first thing you might notice is the
+sequence diagram.
+
+![sequence diagram for the linearizability violation](seeking-consensus.sequence.png)
+
+Tracing backwards from the last event, we can see why linearizability is
+violated:
+
+1. `GetOk(8, 'B')` indicates that `'B'` was the earliest write to finish before
+   this read.
+2. `PutOk(4)` was in response to the long running `Put(4, 'C')` operation,
+   indicating that the value `'C'` must have been written at some point between
+   invocation and response.
+3. `GetOk(6, 'A')` indicates that `'A'` was the earliest write to finish before
+   this read.
+
+We don't have to trace any further back, as those observations above highlight
+the anomaly: `'A'` had been the most recent write, then `'C'` may or may not
+have been written next (as the concurrency allows different linearizations),
+and finally `'B'` was read. No linearization of concurrent operations can
+reconcile this anomaly, so the protocol is not linearizable. QED.
+
 ## Complete Implementation
 
 Here is the complete implementation for `main.rs`:
@@ -93,23 +143,19 @@ Here is the complete implementation for `main.rs`:
 
 ## Suggested Exercise
 
-Uncomment the commented lines in the tests to cause them to fail, and see if
-you can amend the actor implementation to make the tests pass. Do not get too
-frustrated if you are unable to do so, as the next chapter will provide a
-solution, and you may be surprised by its complexity if you are new to
-implementing distributed system protocols.
+Uncomment the second `// TRY IT` line to cause the test to fail, delete the
+linearizability counterexample assertion since it may not longer apply, and see
+if you can amend the actor implementation to make the test pass. The next
+chapter will provide a solution, but going through the exercise of trying to
+design a solution youself will help convey how subtle bugs can be with
+distributed protocols, and hopefully it will demonstrate why Stateright is so
+useful for this problem space.
 
-Tips:
-
-- Use `cargo test --release` when running the tests for dramatically better
-  model checking performance. Running tests without that flag may result in
-  significant delays.
-- Read the [API docs for Stateright
-  Explorer](https://docs.rs/stateright/latest/stateright/struct.CheckerBuilder.html#method.serve)
-  to get an early preview of a powerful tool that will be fully introduced in a
-  later chapter. See if you can use this to help debug your revised
-  implementation. *Hint*: you can start Stateright Explorer by temporarily replacing
-  `spawn_dfs().join()` with `serve("localhost:8000")` for example.
+> **Tip**: use `cargo test --release` when running the tests for dramatically
+better model checking performance. Running tests without that flag may result
+in significant delays. Also, try using [Stateright
+Explorer](https://docs.rs/stateright/latest/stateright/struct.CheckerBuilder.html#method.serve)
+for debugging as needed.
 
 ## Summary
 

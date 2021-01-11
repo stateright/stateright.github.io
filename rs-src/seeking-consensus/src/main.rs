@@ -137,7 +137,9 @@ mod test {
             ],
             client_count: 3,
             .. Default::default()
-        }.into_model().checker().spawn_dfs().join();
+        }.into_model().checker()
+        .spawn_dfs().join();     // TRY IT: Comment out this line, and uncomment
+        //.serve("0:3000");      //         the next to load Stateright Explorer.
         //checker.assert_properties(); // TRY IT: Uncomment this line, and the test will fail.
         checker.assert_discovery("linearizable", vec![
             Deliver { src: Id::from(4), dst: Id::from(0), msg: Put(4, 'C') },

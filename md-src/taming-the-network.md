@@ -63,7 +63,7 @@ generally agree upon the last value they received.
    tradeoff only impacts performance. Still, throughput can be improved by
    adding a "sliding window" buffer on the server side to minimize dropped
    messages. See if you can implement that.
-3. **Lossless Link**: Another technique for minimizing message loss is to have
+3. **Lossless Link**: One technique for minimizing message loss is to have
    the client also maintain a buffer of outgoing messages, and the client
    periodically resends messages that have not been acknowledged by the
    recipient within a particular timeout period. TCP for example does this for
