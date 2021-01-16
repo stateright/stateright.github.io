@@ -221,11 +221,12 @@ edition = &quot;2018&quot;
 [dependencies]
 env_logger = &quot;0.7&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.21.0&quot;
+stateright = &quot;0.22.0&quot;
 </code></pre>
 <p>Here is the complete implementation for <code>main.rs</code>, explained below:</p>
 <pre><code class="language-rust ignore noplayground">
 use stateright::actor::{*, register::*};
+use std::borrow::Cow; // COW == clone-on-write
 use std::net::{SocketAddrV4, Ipv4Addr};
 
 // Here we have an actor that represents a &quot;virtual register.&quot; As you would expect, `Put` messages
@@ -242,19 +243,19 @@ impl Actor for ActorContext {
     type Msg = RegisterMsg&lt;RequestId, char, ()&gt;;
     type State = char;
 
-    fn on_start(&amp;self, _id: Id, o: &amp;mut Out&lt;Self&gt;) {
-        o.set_state('?'); // default value for the register
+    fn on_start(&amp;self, _id: Id, _o: &amp;mut Out&lt;Self&gt;) -&gt; Self::State {
+        '?' // default value for the register
     }
 
-    fn on_msg(&amp;self, _id: Id, state: &amp;Self::State,
+    fn on_msg(&amp;self, _id: Id, state: &amp;mut Cow&lt;Self::State&gt;,
               src: Id, msg: Self::Msg, o: &amp;mut Out&lt;Self&gt;) {
         match msg {
             RegisterMsg::Put(req_id, value) =&gt; {
-                o.set_state(value);
+                *state.to_mut() = value;
                 o.send(src, RegisterMsg::PutOk(req_id));
             }
             RegisterMsg::Get(req_id) =&gt; {
-                o.send(src, RegisterMsg::GetOk(req_id, *state));
+                o.send(src, RegisterMsg::GetOk(req_id, **state));
             }
             _ =&gt; {}
         }
@@ -331,19 +332,19 @@ impl Actor for ActorContext {
     type Msg = RegisterMsg&lt;RequestId, char, ()&gt;;
     type State = char;
 
-    fn on_start(&amp;self, _id: Id, o: &amp;mut Out&lt;Self&gt;) {
-        o.set_state('?'); // default value for the register
+    fn on_start(&amp;self, _id: Id, _o: &amp;mut Out&lt;Self&gt;) -&gt; Self::State {
+        '?' // default value for the register
     }
 
-    fn on_msg(&amp;self, _id: Id, state: &amp;Self::State,
+    fn on_msg(&amp;self, _id: Id, state: &amp;mut Cow&lt;Self::State&gt;,
               src: Id, msg: Self::Msg, o: &amp;mut Out&lt;Self&gt;) {
         match msg {
             RegisterMsg::Put(req_id, value) =&gt; {
-                o.set_state(value);
+                *state.to_mut() = value;
                 o.send(src, RegisterMsg::PutOk(req_id));
             }
             RegisterMsg::Get(req_id) =&gt; {
-                o.send(src, RegisterMsg::GetOk(req_id, *state));
+                o.send(src, RegisterMsg::GetOk(req_id, **state));
             }
             _ =&gt; {}
         }
@@ -450,11 +451,12 @@ edition = &quot;2018&quot;
 [dependencies]
 env_logger = &quot;0.7&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.21.0&quot;
+stateright = &quot;0.22.0&quot;
 </code></pre>
 <p>Here is the complete implementation for <code>main.rs</code>, explained below:</p>
 <pre><code class="language-rust ignore noplayground">
 use stateright::actor::{*, register::*};
+use std::borrow::Cow;
 use std::collections::BTreeSet;
 use std::net::{SocketAddrV4, Ipv4Addr};
 
@@ -473,20 +475,20 @@ impl Actor for ActorContext {
     type Msg = RegisterMsg&lt;RequestId, char, ()&gt;;
     type State = ActorState;
 
-    fn on_start(&amp;self, _id: Id, o: &amp;mut Out&lt;Self&gt;) {
-        o.set_state(ActorState {
+    fn on_start(&amp;self, _id: Id, _o: &amp;mut Out&lt;Self&gt;) -&gt; Self::State {
+        ActorState {
             value: '?',
             delivered: Default::default(),
-        });
+        }
     }
 
-    fn on_msg(&amp;self, _id: Id, state: &amp;Self::State,
+    fn on_msg(&amp;self, _id: Id, state: &amp;mut Cow&lt;Self::State&gt;,
               src: Id, msg: Self::Msg, o: &amp;mut Out&lt;Self&gt;) {
         match msg {
             RegisterMsg::Put(req_id, value) =&gt; {
                 if state.delivered.contains(&amp;(src, req_id)) { return }
 
-                let mut state = o.set_state(state.clone());
+                let mut state = state.to_mut();
                 state.value = value;
                 state.delivered.insert((src, req_id));
                 o.send(src, RegisterMsg::PutOk(req_id));
@@ -570,20 +572,20 @@ impl Actor for ActorContext {
     type Msg = RegisterMsg&lt;RequestId, char, ()&gt;;
     type State = ActorState;
 
-    fn on_start(&amp;self, _id: Id, o: &amp;mut Out&lt;Self&gt;) {
-        o.set_state(ActorState {
+    fn on_start(&amp;self, _id: Id, _o: &amp;mut Out&lt;Self&gt;) -&gt; Self::State {
+        ActorState {
             value: '?',
             delivered: Default::default(),
-        });
+        }
     }
 
-    fn on_msg(&amp;self, _id: Id, state: &amp;Self::State,
+    fn on_msg(&amp;self, _id: Id, state: &amp;mut Cow&lt;Self::State&gt;,
               src: Id, msg: Self::Msg, o: &amp;mut Out&lt;Self&gt;) {
         match msg {
             RegisterMsg::Put(req_id, value) =&gt; {
                 if state.delivered.contains(&amp;(src, req_id)) { return }
 
-                let mut state = o.set_state(state.clone());
+                let mut state = state.to_mut();
                 state.value = value;
                 state.delivered.insert((src, req_id));
                 o.send(src, RegisterMsg::PutOk(req_id));
@@ -691,7 +693,7 @@ edition = &quot;2018&quot;
 env_logger = &quot;0.7&quot;
 serde = &quot;1.0&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.21.0&quot;
+stateright = &quot;0.22.0&quot;
 </code></pre>
 <p>By now you have the hang of implementing basic actor systems in Stateright, so
 we'll defer the full <code>main.rs</code> source code listing until later in the chapter.</p>
@@ -741,13 +743,13 @@ struct PutState {
 }
 </code></pre>
 <p>We are now ready to implement the protocol.</p>
-<pre><code class="language-rust ignore noplayground">    fn on_msg(&amp;self, _id: Id, state: &amp;Self::State,
+<pre><code class="language-rust ignore noplayground">    fn on_msg(&amp;self, _id: Id, state: &amp;mut Cow&lt;Self::State&gt;,
               src: Id, msg: Self::Msg, o: &amp;mut Out&lt;Self&gt;) {
         match msg {
             RegisterMsg::Put(req_id, value) if state.in_flight_put.is_none() =&gt; {
                 if state.delivered.contains(&amp;(src, req_id)) { return }
 
-                let mut state = o.set_state(state.clone());
+                let mut state = state.to_mut();
                 state.value = value;
                 state.delivered.insert((src, req_id));
                 state.in_flight_put = Some(PutState {
@@ -768,7 +770,7 @@ struct PutState {
             RegisterMsg::Internal(InternalMsg::Replicate(req_id, value)) =&gt; {
                 if state.delivered.contains(&amp;(src, req_id)) { return }
 
-                let mut state = o.set_state(state.clone());
+                let mut state = state.to_mut();
                 state.value = value;
                 state.delivered.insert((src, req_id));
                 o.send(src,
@@ -777,7 +779,7 @@ struct PutState {
             RegisterMsg::Internal(InternalMsg::ReplicateOk(req_id)) =&gt; {
                 if state.delivered.contains(&amp;(src, req_id)) { return }
 
-                let mut state = state.clone();
+                let mut state = state.to_mut();
                 if let Some(put) = &amp;mut state.in_flight_put {
                     if req_id != put.req_id { return }
 
@@ -787,7 +789,6 @@ struct PutState {
                         state.in_flight_put = None;
                     }
                 }
-                o.set_state(state);
             }
             _ =&gt; {}
         }
@@ -872,6 +873,7 @@ reconcile this anomaly, so the protocol is not linearizable. QED.</p>
 <pre><code class="language-rust ignore noplayground">
 use serde::{Deserialize, Serialize};
 use stateright::actor::{*, register::*};
+use std::borrow::Cow;
 use std::collections::BTreeSet;
 use std::net::{SocketAddrV4, Ipv4Addr};
 
@@ -907,21 +909,21 @@ impl Actor for ActorContext {
     type Msg = RegisterMsg&lt;RequestId, char, InternalMsg&gt;;
     type State = ActorState;
 
-    fn on_start(&amp;self, _id: Id, o: &amp;mut Out&lt;Self&gt;) {
-        o.set_state(ActorState {
+    fn on_start(&amp;self, _id: Id, _o: &amp;mut Out&lt;Self&gt;) -&gt; Self::State {
+        ActorState {
             value: '?',
             delivered: Default::default(),
             in_flight_put: None,
-        });
+        }
     }
 
-    fn on_msg(&amp;self, _id: Id, state: &amp;Self::State,
+    fn on_msg(&amp;self, _id: Id, state: &amp;mut Cow&lt;Self::State&gt;,
               src: Id, msg: Self::Msg, o: &amp;mut Out&lt;Self&gt;) {
         match msg {
             RegisterMsg::Put(req_id, value) if state.in_flight_put.is_none() =&gt; {
                 if state.delivered.contains(&amp;(src, req_id)) { return }
 
-                let mut state = o.set_state(state.clone());
+                let mut state = state.to_mut();
                 state.value = value;
                 state.delivered.insert((src, req_id));
                 state.in_flight_put = Some(PutState {
@@ -942,7 +944,7 @@ impl Actor for ActorContext {
             RegisterMsg::Internal(InternalMsg::Replicate(req_id, value)) =&gt; {
                 if state.delivered.contains(&amp;(src, req_id)) { return }
 
-                let mut state = o.set_state(state.clone());
+                let mut state = state.to_mut();
                 state.value = value;
                 state.delivered.insert((src, req_id));
                 o.send(src,
@@ -951,7 +953,7 @@ impl Actor for ActorContext {
             RegisterMsg::Internal(InternalMsg::ReplicateOk(req_id)) =&gt; {
                 if state.delivered.contains(&amp;(src, req_id)) { return }
 
-                let mut state = state.clone();
+                let mut state = state.to_mut();
                 if let Some(put) = &amp;mut state.in_flight_put {
                     if req_id != put.req_id { return }
 
@@ -961,7 +963,6 @@ impl Actor for ActorContext {
                         state.in_flight_put = None;
                     }
                 }
-                o.set_state(state);
             }
             _ =&gt; {}
         }

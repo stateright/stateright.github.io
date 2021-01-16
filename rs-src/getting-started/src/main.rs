@@ -1,6 +1,7 @@
 /* ANCHOR: all */
 
 use stateright::actor::{*, register::*};
+use std::borrow::Cow; // COW == clone-on-write
 use std::net::{SocketAddrV4, Ipv4Addr};
 
 // Here we have an actor that represents a "virtual register." As you would expect, `Put` messages
@@ -18,19 +19,19 @@ impl Actor for ActorContext {
     type Msg = RegisterMsg<RequestId, char, ()>;
     type State = char;
 
-    fn on_start(&self, _id: Id, o: &mut Out<Self>) {
-        o.set_state('?'); // default value for the register
+    fn on_start(&self, _id: Id, _o: &mut Out<Self>) -> Self::State {
+        '?' // default value for the register
     }
 
-    fn on_msg(&self, _id: Id, state: &Self::State,
+    fn on_msg(&self, _id: Id, state: &mut Cow<Self::State>,
               src: Id, msg: Self::Msg, o: &mut Out<Self>) {
         match msg {
             RegisterMsg::Put(req_id, value) => {
-                o.set_state(value);
+                *state.to_mut() = value;
                 o.send(src, RegisterMsg::PutOk(req_id));
             }
             RegisterMsg::Get(req_id) => {
-                o.send(src, RegisterMsg::GetOk(req_id, *state));
+                o.send(src, RegisterMsg::GetOk(req_id, **state));
             }
             _ => {}
         }

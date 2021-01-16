@@ -194,11 +194,12 @@ edition = &quot;2018&quot;
 [dependencies]
 env_logger = &quot;0.7&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.21.0&quot;
+stateright = &quot;0.22.0&quot;
 </code></pre>
 <p>Here is the complete implementation for <code>main.rs</code>, explained below:</p>
 <pre><code class="language-rust ignore noplayground">
 use stateright::actor::{*, register::*};
+use std::borrow::Cow; // COW == clone-on-write
 use std::net::{SocketAddrV4, Ipv4Addr};
 
 // Here we have an actor that represents a &quot;virtual register.&quot; As you would expect, `Put` messages
@@ -215,19 +216,19 @@ impl Actor for ActorContext {
     type Msg = RegisterMsg&lt;RequestId, char, ()&gt;;
     type State = char;
 
-    fn on_start(&amp;self, _id: Id, o: &amp;mut Out&lt;Self&gt;) {
-        o.set_state('?'); // default value for the register
+    fn on_start(&amp;self, _id: Id, _o: &amp;mut Out&lt;Self&gt;) -&gt; Self::State {
+        '?' // default value for the register
     }
 
-    fn on_msg(&amp;self, _id: Id, state: &amp;Self::State,
+    fn on_msg(&amp;self, _id: Id, state: &amp;mut Cow&lt;Self::State&gt;,
               src: Id, msg: Self::Msg, o: &amp;mut Out&lt;Self&gt;) {
         match msg {
             RegisterMsg::Put(req_id, value) =&gt; {
-                o.set_state(value);
+                *state.to_mut() = value;
                 o.send(src, RegisterMsg::PutOk(req_id));
             }
             RegisterMsg::Get(req_id) =&gt; {
-                o.send(src, RegisterMsg::GetOk(req_id, *state));
+                o.send(src, RegisterMsg::GetOk(req_id, **state));
             }
             _ =&gt; {}
         }
@@ -304,19 +305,19 @@ impl Actor for ActorContext {
     type Msg = RegisterMsg&lt;RequestId, char, ()&gt;;
     type State = char;
 
-    fn on_start(&amp;self, _id: Id, o: &amp;mut Out&lt;Self&gt;) {
-        o.set_state('?'); // default value for the register
+    fn on_start(&amp;self, _id: Id, _o: &amp;mut Out&lt;Self&gt;) -&gt; Self::State {
+        '?' // default value for the register
     }
 
-    fn on_msg(&amp;self, _id: Id, state: &amp;Self::State,
+    fn on_msg(&amp;self, _id: Id, state: &amp;mut Cow&lt;Self::State&gt;,
               src: Id, msg: Self::Msg, o: &amp;mut Out&lt;Self&gt;) {
         match msg {
             RegisterMsg::Put(req_id, value) =&gt; {
-                o.set_state(value);
+                *state.to_mut() = value;
                 o.send(src, RegisterMsg::PutOk(req_id));
             }
             RegisterMsg::Get(req_id) =&gt; {
-                o.send(src, RegisterMsg::GetOk(req_id, *state));
+                o.send(src, RegisterMsg::GetOk(req_id, **state));
             }
             _ =&gt; {}
         }

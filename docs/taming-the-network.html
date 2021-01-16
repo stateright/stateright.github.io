@@ -184,11 +184,12 @@ edition = &quot;2018&quot;
 [dependencies]
 env_logger = &quot;0.7&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.21.0&quot;
+stateright = &quot;0.22.0&quot;
 </code></pre>
 <p>Here is the complete implementation for <code>main.rs</code>, explained below:</p>
 <pre><code class="language-rust ignore noplayground">
 use stateright::actor::{*, register::*};
+use std::borrow::Cow;
 use std::collections::BTreeSet;
 use std::net::{SocketAddrV4, Ipv4Addr};
 
@@ -207,20 +208,20 @@ impl Actor for ActorContext {
     type Msg = RegisterMsg&lt;RequestId, char, ()&gt;;
     type State = ActorState;
 
-    fn on_start(&amp;self, _id: Id, o: &amp;mut Out&lt;Self&gt;) {
-        o.set_state(ActorState {
+    fn on_start(&amp;self, _id: Id, _o: &amp;mut Out&lt;Self&gt;) -&gt; Self::State {
+        ActorState {
             value: '?',
             delivered: Default::default(),
-        });
+        }
     }
 
-    fn on_msg(&amp;self, _id: Id, state: &amp;Self::State,
+    fn on_msg(&amp;self, _id: Id, state: &amp;mut Cow&lt;Self::State&gt;,
               src: Id, msg: Self::Msg, o: &amp;mut Out&lt;Self&gt;) {
         match msg {
             RegisterMsg::Put(req_id, value) =&gt; {
                 if state.delivered.contains(&amp;(src, req_id)) { return }
 
-                let mut state = o.set_state(state.clone());
+                let mut state = state.to_mut();
                 state.value = value;
                 state.delivered.insert((src, req_id));
                 o.send(src, RegisterMsg::PutOk(req_id));
@@ -304,20 +305,20 @@ impl Actor for ActorContext {
     type Msg = RegisterMsg&lt;RequestId, char, ()&gt;;
     type State = ActorState;
 
-    fn on_start(&amp;self, _id: Id, o: &amp;mut Out&lt;Self&gt;) {
-        o.set_state(ActorState {
+    fn on_start(&amp;self, _id: Id, _o: &amp;mut Out&lt;Self&gt;) -&gt; Self::State {
+        ActorState {
             value: '?',
             delivered: Default::default(),
-        });
+        }
     }
 
-    fn on_msg(&amp;self, _id: Id, state: &amp;Self::State,
+    fn on_msg(&amp;self, _id: Id, state: &amp;mut Cow&lt;Self::State&gt;,
               src: Id, msg: Self::Msg, o: &amp;mut Out&lt;Self&gt;) {
         match msg {
             RegisterMsg::Put(req_id, value) =&gt; {
                 if state.delivered.contains(&amp;(src, req_id)) { return }
 
-                let mut state = o.set_state(state.clone());
+                let mut state = state.to_mut();
                 state.value = value;
                 state.delivered.insert((src, req_id));
                 o.send(src, RegisterMsg::PutOk(req_id));

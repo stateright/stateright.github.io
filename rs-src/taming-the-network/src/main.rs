@@ -1,6 +1,7 @@
 /* ANCHOR: all */
 
 use stateright::actor::{*, register::*};
+use std::borrow::Cow;
 use std::collections::BTreeSet;
 use std::net::{SocketAddrV4, Ipv4Addr};
 
@@ -20,20 +21,20 @@ impl Actor for ActorContext {
     type Msg = RegisterMsg<RequestId, char, ()>;
     type State = ActorState;
 
-    fn on_start(&self, _id: Id, o: &mut Out<Self>) {
-        o.set_state(ActorState {
+    fn on_start(&self, _id: Id, _o: &mut Out<Self>) -> Self::State {
+        ActorState {
             value: '?',
             delivered: Default::default(),
-        });
+        }
     }
 
-    fn on_msg(&self, _id: Id, state: &Self::State,
+    fn on_msg(&self, _id: Id, state: &mut Cow<Self::State>,
               src: Id, msg: Self::Msg, o: &mut Out<Self>) {
         match msg {
             RegisterMsg::Put(req_id, value) => {
                 if state.delivered.contains(&(src, req_id)) { return }
 
-                let mut state = o.set_state(state.clone());
+                let mut state = state.to_mut();
                 state.value = value;
                 state.delivered.insert((src, req_id));
                 o.send(src, RegisterMsg::PutOk(req_id));
