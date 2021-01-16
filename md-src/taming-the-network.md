@@ -11,13 +11,10 @@ cd taming-the-network
 cargo init
 ```
 
-Then add `serde` and `stateright` to the dependencies in `Cargo.toml`:
+Then add dependencies to `Cargo.toml`:
 
 ```toml
-[dependencies]
-env_logger = "0.7"
-serde_json = "1.0"
-stateright = "0.20"
+{{#include ../rs-src/taming-the-network/Cargo.toml}}
 ```
 
 Here is the complete implementation for `main.rs`, explained below:

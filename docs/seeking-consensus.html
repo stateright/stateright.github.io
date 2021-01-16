@@ -180,11 +180,16 @@ cd seeking-consensus
 cargo init
 </code></pre>
 <p>Add dependencies to <code>Cargo.toml</code>. Note that we now need to include <code>serde</code>.</p>
-<pre><code class="language-toml">[dependencies]
+<pre><code class="language-toml">[package]
+name = &quot;seeking-consensus&quot;
+version = &quot;0.1.0&quot;
+edition = &quot;2018&quot;
+
+[dependencies]
 env_logger = &quot;0.7&quot;
 serde = &quot;1.0&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.20&quot;
+stateright = &quot;0.21.0&quot;
 </code></pre>
 <p>By now you have the hang of implementing basic actor systems in Stateright, so
 we'll defer the full <code>main.rs</code> source code listing until later in the chapter.</p>

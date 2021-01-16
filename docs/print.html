@@ -212,11 +212,16 @@ susceptible to surprising behavior.</p>
 cd getting-started
 cargo init
 </code></pre>
-<p>Then add <code>serde</code> and <code>stateright</code> to the dependencies in <code>Cargo.toml</code>:</p>
-<pre><code class="language-toml">[dependencies]
+<p>Then add dependencies to <code>Cargo.toml</code>:</p>
+<pre><code class="language-toml">[package]
+name = &quot;getting-started&quot;
+version = &quot;0.1.0&quot;
+edition = &quot;2018&quot;
+
+[dependencies]
 env_logger = &quot;0.7&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.20&quot;
+stateright = &quot;0.21.0&quot;
 </code></pre>
 <p>Here is the complete implementation for <code>main.rs</code>, explained below:</p>
 <pre><code class="language-rust ignore noplayground">
@@ -436,11 +441,16 @@ to message redelivery. We address that in this chapter.</p>
 cd taming-the-network
 cargo init
 </code></pre>
-<p>Then add <code>serde</code> and <code>stateright</code> to the dependencies in <code>Cargo.toml</code>:</p>
-<pre><code class="language-toml">[dependencies]
+<p>Then add dependencies to <code>Cargo.toml</code>:</p>
+<pre><code class="language-toml">[package]
+name = &quot;taming-the-network&quot;
+version = &quot;0.1.0&quot;
+edition = &quot;2018&quot;
+
+[dependencies]
 env_logger = &quot;0.7&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.20&quot;
+stateright = &quot;0.21.0&quot;
 </code></pre>
 <p>Here is the complete implementation for <code>main.rs</code>, explained below:</p>
 <pre><code class="language-rust ignore noplayground">
@@ -672,11 +682,16 @@ cd seeking-consensus
 cargo init
 </code></pre>
 <p>Add dependencies to <code>Cargo.toml</code>. Note that we now need to include <code>serde</code>.</p>
-<pre><code class="language-toml">[dependencies]
+<pre><code class="language-toml">[package]
+name = &quot;seeking-consensus&quot;
+version = &quot;0.1.0&quot;
+edition = &quot;2018&quot;
+
+[dependencies]
 env_logger = &quot;0.7&quot;
 serde = &quot;1.0&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.20&quot;
+stateright = &quot;0.21.0&quot;
 </code></pre>
 <p>By now you have the hang of implementing basic actor systems in Stateright, so
 we'll defer the full <code>main.rs</code> source code listing until later in the chapter.</p>

@@ -19,11 +19,7 @@ cargo init
 Add dependencies to `Cargo.toml`. Note that we now need to include `serde`.
 
 ```toml
-[dependencies]
-env_logger = "0.7"
-serde = "1.0"
-serde_json = "1.0"
-stateright = "0.20"
+{{#include ../rs-src/seeking-consensus/Cargo.toml}}
 ```
 
 By now you have the hang of implementing basic actor systems in Stateright, so
