@@ -151,9 +151,9 @@ design a solution youself will help convey how subtle bugs can be with
 distributed protocols, and hopefully it will demonstrate why Stateright is so
 useful for this problem space.
 
-> **Tip**: use `cargo test --release` when running the tests for dramatically
-better model checking performance. Running tests without that flag may result
-in significant delays. Also, try using [Stateright
+> **Reminder**: use `cargo test --release` when running the tests for
+dramatically better model checking performance. Running tests without that flag
+may result in significant delays. Also, try using [Stateright
 Explorer](https://docs.rs/stateright/latest/stateright/struct.CheckerBuilder.html#method.serve)
 for debugging as needed.
 

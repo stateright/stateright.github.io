@@ -65,8 +65,25 @@ regardless of how the network reorders or redelivers messages*."
 
 The test checks the system for a property called
 [linearizability](https://en.wikipedia.org/wiki/Linearizability), which loosely
-speaking means that semantics of the register abstraction provided by the
-actors is identical to that of a register within a single-threaded system.
+speaking means that the visible behavior of the register abstraction provided
+by the actors is identical to that of a register within a single-threaded
+system.
+
+> **Terminology**: The term "linearizable" derives from the insight that the
+operations executed by a system form a directed acyclic graph where edges
+indicate "happens before." For example, if Computer1 sends messages to invoke
+operations on Computer2 and Computer3, then the message sends happens before
+Computer2 or Computer3 handle them, but the handling of the messages by
+Computer2 and Computer 3 lack a defined order because the messages
+[race](https://en.wikipedia.org/wiki/Race_condition). A "linearization" defines
+a viable linear order such as "Computer 1 sends the messages, Computer 3
+handles one, and then Computer2 handles the other." A system is not
+linearizable when its behavior cannot be mapped to a linearization. For
+example, if the operation invoked on Computer2 was `Append "Hello"` and
+Computer3 was `Append "World"`, but the final value interlaced the inputs to
+form `"WolloHerld"`, then the system would not be linearizable. Either
+`"HelloWorld"` or `"WorldHello"` on the other hand would be valid
+linearizations since the messages race.
 
 The test leverages
 [`RegisterTestSystem`](https://docs.rs/stateright/0.18.0/stateright/actor/register/struct.RegisterTestSystem.html),
@@ -93,10 +110,14 @@ socket, encoding messages with the JSON format.
 
 ## Running
 
-Confirm the system behaves as expected by running the test, which should pass.
+Confirm the system behaves as expected by running the test, which should pass
+because the test asserts that the bug exists. It's a good idea to get into the
+habit of passing the `--release` flag when testing more complex systems so that
+Rust fully optimizes the code, as testing can be computationally intensive and
+time consuming.
 
 ```sh
-cargo test
+cargo test --release
 ```
 
 Now run the actor on a UDP socket.

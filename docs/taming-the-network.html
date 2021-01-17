@@ -292,7 +292,7 @@ fn main() {
 }
 
 </code></pre>
-<h2><a class="header" href="#explanation" id="explanation">Explanation</a></h2>
+<h2><a class="header" href="#implementation-walkthrough" id="implementation-walkthrough">Implementation Walkthrough</a></h2>
 <p>Addressing the linearizability issue is merely a matter of throwing away
 message redeliveries. The simplest approach is to record every delivered request ID.</p>
 <pre><code class="language-rust ignore noplayground">#[derive(Clone, Debug, Hash, PartialEq)]

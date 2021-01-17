@@ -176,7 +176,7 @@ stable. If you plan to use Stateright for production scenarios, then please
 that the author can coordinate with you to minimize any disruption.</p>
 </blockquote>
 <p>Let's start with the simplest nontrivial distributed system: a single client
-that can interact with a single server by putting or get a value. We'll see
+that can interact with a single server by reading or writing a value. We'll see
 that even this minimal example is susceptible to surprising behavior.</p>
 <p><a href="https://www.rust-lang.org/learn/get-started">Install the Rust programming
 language</a> if it is not already
@@ -291,7 +291,7 @@ fn main() {
 }
 
 </code></pre>
-<h2><a class="header" href="#explanation" id="explanation">Explanation</a></h2>
+<h2><a class="header" href="#implementation-walkthrough" id="implementation-walkthrough">Implementation Walkthrough</a></h2>
 <p>The code starts by implementing a simple server using the &quot;<a href="https://en.wikipedia.org/wiki/Actor_model">actor
 model</a>.&quot; An actor is an event
 oriented process that is able to communicate with other actors over a network
@@ -341,10 +341,28 @@ nondeterministic system with less focus on the variety of initial inputs; for
 example &quot;<em>if clients write <code>X</code> followed by <code>Y</code> to the the same database key
 <code>K</code>, then a subsequent read may only return <code>Y</code> until the next write,
 regardless of how the network reorders or redelivers messages</em>.&quot;</p>
-<p>The test specifies that the system should be &quot;linearizable,&quot; which roughly
-means that the actors collectively operate as if they were run within a single
-thread on a single computer, even when they are run on multiple threads
-spanning multiple computers.</p>
+<p>The test checks the system for a property called
+<a href="https://en.wikipedia.org/wiki/Linearizability">linearizability</a>, which loosely
+speaking means that the visible behavior of the register abstraction provided
+by the actors is identical to that of a register within a single-threaded
+system.</p>
+<blockquote>
+<p><strong>Terminology</strong>: The term &quot;linearizable&quot; derives from the insight that the
+operations executed by a system form a directed acyclic graph where edges
+indicate &quot;happens before.&quot; For example, if Computer1 sends messages to invoke
+operations on Computer2 and Computer3, then the message sends happens before
+Computer2 or Computer3 handle them, but the handling of the messages by
+Computer2 and Computer 3 lack a defined order because the messages
+<a href="https://en.wikipedia.org/wiki/Race_condition">race</a>. A &quot;linearization&quot; defines
+a viable linear order such as &quot;Computer 1 sends the messages, Computer 3
+handles one, and then Computer2 handles the other.&quot; A system is not
+linearizable when its behavior cannot be mapped to a linearization. For
+example, if the operation invoked on Computer2 was <code>Append &quot;Hello&quot;</code> and
+Computer3 was <code>Append &quot;World&quot;</code>, but the final value interlaced the inputs to
+form <code>&quot;WolloHerld&quot;</code>, then the system would not be linearizable. Either
+<code>&quot;HelloWorld&quot;</code> or <code>&quot;WorldHello&quot;</code> on the other hand would be valid
+linearizations since the messages race.</p>
+</blockquote>
 <p>The test leverages
 <a href="https://docs.rs/stateright/0.18.0/stateright/actor/register/struct.RegisterTestSystem.html"><code>RegisterTestSystem</code></a>,
 which is built into Stateright and defines a system whereby a specified number
@@ -399,8 +417,12 @@ socket, encoding messages with the JSON format.</p>
 }
 </code></pre>
 <h2><a class="header" href="#running" id="running">Running</a></h2>
-<p>Confirm the system behaves as expected by running the test, which should pass.</p>
-<pre><code class="language-sh">cargo test
+<p>Confirm the system behaves as expected by running the test, which should pass
+because the test asserts that the bug exists. It's a good idea to get into the
+habit of passing the <code>--release</code> flag when testing more complex systems so that
+Rust fully optimizes the code, as testing can be computationally intensive and
+time consuming.</p>
+<pre><code class="language-sh">cargo test --release
 </code></pre>
 <p>Now run the actor on a UDP socket.</p>
 <pre><code class="language-sh">cargo run
