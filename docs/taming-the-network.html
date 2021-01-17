@@ -333,10 +333,11 @@ impl Actor for ActorContext {
 </code></pre>
 <p>With that small change, each server provides an independent linearizable
 register. In the presence of messages concurrently in flight, the register
-abstraction is still atomic and <a href="https://en.wikipedia.org/wiki/Linearizability">linearizable</a> (for
-example, reads cannot observe values overwritten before the read began, among other
+abstraction is still
+<a href="https://en.wikipedia.org/wiki/Linearizability">linearizable</a> (for example,
+reads cannot observe values overwritten before the read began, among other
 characteristics).</p>
-<p>The servers feature no replication, so a collection of servers does not provide
+<p>The servers feature no replication, so a <em>collection</em> of servers does not provide
 a unified service that emulates a linearizable register as the servers will not
 generally agree upon the last value they received.</p>
 <pre><code class="language-rust ignore noplayground">    #[test]

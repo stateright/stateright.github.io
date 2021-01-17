@@ -8,7 +8,7 @@ replicate information between servers.
 In this chapter we introduce a simple replication protocol in an attempt to
 address that shortcoming.
 
-Initialize a new Rust project:
+Once again, we start by initializing a new Rust project:
 
 ```sh
 mkdir seeking-consensus
@@ -16,7 +16,8 @@ cd seeking-consensus
 cargo init
 ```
 
-Add dependencies to `Cargo.toml`. Note that we now need to include `serde`.
+Next we add dependencies to `Cargo.toml`. Notice that we now need to include
+the `serde` package.
 
 ```toml
 {{#include ../rs-src/seeking-consensus/Cargo.toml}}
@@ -81,7 +82,7 @@ implementing distributed systems.
 
 ## Stateright Explorer
 
-It's not immediatley clear why the sequence of steps identified by Stateright
+It's not immediately clear why the sequence of steps identified by Stateright
 violates linearizability. Luckily Stateright includes a web UI that can help
 you understand scenarios such as this one.
 
@@ -91,7 +92,7 @@ You can easily do this by following the directions in the first `// TRY IT` line
 which will suspend the test when it is next run, allowing you to load
 `http://localhost:3000` in your web browser to debug.
 
-> **Tip**: Model checking with Stateright Explorer is breadth-first as that
+> **Tip**: Model checking with Stateright Explorer is breadth-first, as that
 tends to find shorter discovery paths than depth-first search. One downside of
 this approach is that breadth-first search consumes more memory, so Explorer
 works best with relatively small state spaces (hundreds of thousands of states
@@ -115,13 +116,16 @@ sequence diagram.
 Tracing backwards from the last event, we can see why linearizability is
 violated:
 
-1. `GetOk(8, 'B')` indicates that `'B'` was the earliest write to finish before
-   this read.
+1. `GetOk(8, 'B')` indicates that `'B'` is the earliest write finishing before
+   the read. Also, no operations are concurrent with the read.
 2. `PutOk(4)` was in response to the long running `Put(4, 'C')` operation,
    indicating that the value `'C'` must have been written at some point between
-   invocation and response.
-3. `GetOk(6, 'A')` indicates that `'A'` was the earliest write to finish before
-   this read.
+   invocation and response. Unlike the read, the precise sequencing of this
+   write in relation to other operations is indeterminate due to concurrency).
+3. `GetOk(6, 'A')` indicates that `'A'` is the earliest write finishing before
+   that read. Only the write of `'C'` is concurrent with the start and end of
+   the read, so it's possible that the write took effect before or after the
+   read took effect.
 
 We don't have to trace any further back, as those observations above highlight
 the anomaly: `'A'` had been the most recent write, then `'C'` may or may not

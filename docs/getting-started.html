@@ -169,23 +169,24 @@
                     <main>
                         <h1><a class="header" href="#chapter-1-getting-started" id="chapter-1-getting-started">Chapter 1: Getting Started</a></h1>
 <blockquote>
-<h2><a class="header" href="#caveats" id="caveats">Caveats</a></h2>
-<p>While Stateright is seeking early adopters, it is important to clarify that its actor runtime has
-not gone through a security review. If you want to use Stateright for production scenarios, then
-please <a href="https://github.com/stateright/stateright/issues/new">file a GitHub issue</a> so that this can
-be prioritized before your product is live.</p>
-<p>Furthermore, the project is pre-1.0 and will be making breaking API changes leading up to a 1.0
-release.</p>
+<p><strong>IMPORTANT</strong>: Stateright is a relatively new framework and will be making breaking API
+changes leading up to a 1.0 release, at which point the API will be considered
+stable. If you plan to use Stateright for production scenarios, then please
+<a href="https://github.com/stateright/stateright/issues/new">file a GitHub issue</a> so
+that the author can coordinate with you to minimize any disruption.</p>
 </blockquote>
-<p>Let's start with the simplest nontrivial distributed system: a single server
-that can set or get a value. We'll see that even this minimal example is
-susceptible to surprising behavior.</p>
-<p>Initialize a new Rust project:</p>
+<p>Let's start with the simplest nontrivial distributed system: a single client
+that can interact with a single server by putting or get a value. We'll see
+that even this minimal example is susceptible to surprising behavior.</p>
+<p><a href="https://www.rust-lang.org/learn/get-started">Install the Rust programming
+language</a> if it is not already
+installed, then initialize a new project using the <code>cargo</code> utility included
+with Rust.</p>
 <pre><code class="language-sh">mkdir getting-started
 cd getting-started
 cargo init
 </code></pre>
-<p>Then add dependencies to <code>Cargo.toml</code>:</p>
+<p>Define dependencies in <code>Cargo.toml</code>.</p>
 <pre><code class="language-toml">[package]
 name = &quot;getting-started&quot;
 version = &quot;0.1.0&quot;
@@ -196,7 +197,8 @@ env_logger = &quot;0.7&quot;
 serde_json = &quot;1.0&quot;
 stateright = &quot;0.22.0&quot;
 </code></pre>
-<p>Here is the complete implementation for <code>main.rs</code>, explained below:</p>
+<p>Here is the complete implementation for <code>main.rs</code>. Copy-paste it into your own
+file. The next section explains the most important aspects.</p>
 <pre><code class="language-rust ignore noplayground">
 use stateright::actor::{*, register::*};
 use std::borrow::Cow; // COW == clone-on-write
@@ -290,11 +292,15 @@ fn main() {
 
 </code></pre>
 <h2><a class="header" href="#explanation" id="explanation">Explanation</a></h2>
-<p>The code starts by implementing a simple server actor that responds to <code>Put</code>
-and <code>Get</code> messages based only on its own local state, providing a <a href="https://en.wikipedia.org/wiki/Shared_register">shared
-register</a> abstraction to its
-clients. Responses are linked to requests via a request ID chosen by the
-client.</p>
+<p>The code starts by implementing a simple server using the &quot;<a href="https://en.wikipedia.org/wiki/Actor_model">actor
+model</a>.&quot; An actor is an event
+oriented process that is able to communicate with other actors over a network
+by sending messages.</p>
+<p>The server responds to <code>Put</code> and <code>Get</code> messages based only on its own local
+state, providing its clients with a simple form of distributed storage,
+sometimes known as a <a href="https://en.wikipedia.org/wiki/Shared_register">shared
+register</a>.  Responses are linked
+to requests via a request ID chosen by the client.</p>
 <pre><code class="language-rust ignore noplayground">
 type RequestId = u64;
 
@@ -335,15 +341,20 @@ nondeterministic system with less focus on the variety of initial inputs; for
 example &quot;<em>if clients write <code>X</code> followed by <code>Y</code> to the the same database key
 <code>K</code>, then a subsequent read may only return <code>Y</code> until the next write,
 regardless of how the network reorders or redelivers messages</em>.&quot;</p>
+<p>The test specifies that the system should be &quot;linearizable,&quot; which roughly
+means that the actors collectively operate as if they were run within a single
+thread on a single computer, even when they are run on multiple threads
+spanning multiple computers.</p>
 <p>The test leverages
 <a href="https://docs.rs/stateright/0.18.0/stateright/actor/register/struct.RegisterTestSystem.html"><code>RegisterTestSystem</code></a>,
-which specifies a system in which a specified number of clients concurrenly
-write distinct values and independently read values without coordinating with
-one another. Under the hood <code>RegisterTestSystem</code> also leverages Stateright's
-built-in
-<a href="https://docs.rs/stateright/latest/stateright/semantics/struct.LinearizabilityTester.html"><code>LinearizabilityTester</code></a>
-to exercise the system. Notice how Stateright identifies a bug, which only
-manifests when the network delivers messages.</p>
+which is built into Stateright and defines a system whereby a specified number
+of clients (only 1 in this case) write distinct values and independently read
+values without coordinating with one another. Under the hood
+<code>RegisterTestSystem</code> also leverages Stateright's built-in
+<a href="https://docs.rs/stateright/latest/stateright/semantics/struct.LinearizabilityTester.html"><code>LinearizabilityTester</code></a>.</p>
+<p>Stateright is able to find a bug that arises even if there is only a single
+client. The bug manifests whenever the network redeliveries messages, something
+that can and does happen in practice.</p>
 <pre><code class="language-rust ignore noplayground">    #[test]
     fn is_unfortunately_not_linearizable() {
         let checker = RegisterTestSystem {
@@ -374,7 +385,8 @@ manifests when the network delivers messages.</p>
         ]);
     }
 </code></pre>
-<p>The actor can also be run on a UDP socket, handling JSON messages:</p>
+<p>The last bit of code defines the <code>main</code> method, which runs the actor on a UDP
+socket, encoding messages with the JSON format.</p>
 <pre><code class="language-rust ignore noplayground">fn main() {
     env_logger::init_from_env(env_logger::Env::default().default_filter_or(&quot;info&quot;));
     let handles = spawn(
@@ -387,25 +399,32 @@ manifests when the network delivers messages.</p>
 }
 </code></pre>
 <h2><a class="header" href="#running" id="running">Running</a></h2>
-<p>Confirm the system behaves as expected by running the test, which should pass:</p>
+<p>Confirm the system behaves as expected by running the test, which should pass.</p>
 <pre><code class="language-sh">cargo test
 </code></pre>
-<p>Now run the actor over UDP using Stateright's actor runtime:</p>
+<p>Now run the actor on a UDP socket.</p>
 <pre><code class="language-sh">cargo run
 </code></pre>
-<p>If using a POSIX-oriented operating system, <a href="https://en.wikipedia.org/wiki/Netcat">netcat</a> can be
-used to interact with the actor. Actor responses are omitted from the listing below for clarity,
-but you will see messages such as <code>{&quot;PutOk&quot;:0}</code> printed to STDOUT. Numbers in the messages are
-request IDs.</p>
+<p>If using a POSIX-oriented operating system,
+<a href="https://en.wikipedia.org/wiki/Netcat">netcat</a> can be used to interact with the
+actor from a different terminal window. Actor responses are omitted from the
+listing below for clarity, but you will see messages such as <code>{&quot;PutOk&quot;:0}</code>
+printed to STDOUT. Numbers in the messages are request IDs, the importance of
+which will be more evident in the next chapter.</p>
 <pre><code class="language-sh">nc -u localhost 3000
 {&quot;Put&quot;:[0,&quot;X&quot;]}
 {&quot;Get&quot;:1}
 {&quot;Put&quot;:[2,&quot;X&quot;]}
 {&quot;Get&quot;:3}
 </code></pre>
+<h2><a class="header" href="#exercise" id="exercise">Exercise</a></h2>
+<p>Uncomment the <code>// TRY IT</code> line, then run the test again. It should fail
+indicating a sequence of steps that would cause the linearizability expectation
+to be violated. This exercise demonstrates how Stateright can detect flaws that
+would likely go undetected when simply reviewing the actor implementation.</p>
 <h2><a class="header" href="#summary" id="summary">Summary</a></h2>
-<p>This chapter introduced one of the simplest possible actor systems and showed
-how Stateright can find a subtle bug. The next chapter <a href="./taming-the-network.html">Taming the
+<p>This chapter introduced one of the simplest possible distributed systems and
+showed how Stateright can find a subtle bug. The next chapter <a href="./taming-the-network.html">Taming the
 Network</a> will address that bug.</p>
 
                     </main>

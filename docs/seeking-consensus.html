@@ -174,12 +174,13 @@ Introducing a second server would break linearizability as the system failed to
 replicate information between servers.</p>
 <p>In this chapter we introduce a simple replication protocol in an attempt to
 address that shortcoming.</p>
-<p>Initialize a new Rust project:</p>
+<p>Once again, we start by initializing a new Rust project:</p>
 <pre><code class="language-sh">mkdir seeking-consensus
 cd seeking-consensus
 cargo init
 </code></pre>
-<p>Add dependencies to <code>Cargo.toml</code>. Note that we now need to include <code>serde</code>.</p>
+<p>Next we add dependencies to <code>Cargo.toml</code>. Notice that we now need to include
+the <code>serde</code> package.</p>
 <pre><code class="language-toml">[package]
 name = &quot;seeking-consensus&quot;
 version = &quot;0.1.0&quot;
@@ -325,7 +326,7 @@ implementing distributed systems.</p>
         ]);
 </code></pre>
 <h2><a class="header" href="#stateright-explorer" id="stateright-explorer">Stateright Explorer</a></h2>
-<p>It's not immediatley clear why the sequence of steps identified by Stateright
+<p>It's not immediately clear why the sequence of steps identified by Stateright
 violates linearizability. Luckily Stateright includes a web UI that can help
 you understand scenarios such as this one.</p>
 <p>Stateright Explorer is started by calling
@@ -334,7 +335,7 @@ You can easily do this by following the directions in the first <code>// TRY IT<
 which will suspend the test when it is next run, allowing you to load
 <code>http://localhost:3000</code> in your web browser to debug.</p>
 <blockquote>
-<p><strong>Tip</strong>: Model checking with Stateright Explorer is breadth-first as that
+<p><strong>Tip</strong>: Model checking with Stateright Explorer is breadth-first, as that
 tends to find shorter discovery paths than depth-first search. One downside of
 this approach is that breadth-first search consumes more memory, so Explorer
 works best with relatively small state spaces (hundreds of thousands of states
@@ -351,13 +352,16 @@ sequence diagram.</p>
 <p>Tracing backwards from the last event, we can see why linearizability is
 violated:</p>
 <ol>
-<li><code>GetOk(8, 'B')</code> indicates that <code>'B'</code> was the earliest write to finish before
-this read.</li>
+<li><code>GetOk(8, 'B')</code> indicates that <code>'B'</code> is the earliest write finishing before
+the read. Also, no operations are concurrent with the read.</li>
 <li><code>PutOk(4)</code> was in response to the long running <code>Put(4, 'C')</code> operation,
 indicating that the value <code>'C'</code> must have been written at some point between
-invocation and response.</li>
-<li><code>GetOk(6, 'A')</code> indicates that <code>'A'</code> was the earliest write to finish before
-this read.</li>
+invocation and response. Unlike the read, the precise sequencing of this
+write in relation to other operations is indeterminate due to concurrency).</li>
+<li><code>GetOk(6, 'A')</code> indicates that <code>'A'</code> is the earliest write finishing before
+that read. Only the write of <code>'C'</code> is concurrent with the start and end of
+the read, so it's possible that the write took effect before or after the
+read took effect.</li>
 </ol>
 <p>We don't have to trace any further back, as those observations above highlight
 the anomaly: <code>'A'</code> had been the most recent write, then <code>'C'</code> may or may not

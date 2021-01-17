@@ -23,7 +23,7 @@ Here is the complete implementation for `main.rs`, explained below:
 {{#include ../rs-src/taming-the-network/src/main.rs:all}}
 ```
 
-## Explanation
+## Implementation Walkthrough
 
 Addressing the linearizability issue is merely a matter of throwing away
 message redeliveries. The simplest approach is to record every delivered request ID.
@@ -34,11 +34,12 @@ message redeliveries. The simplest approach is to record every delivered request
 
 With that small change, each server provides an independent linearizable
 register. In the presence of messages concurrently in flight, the register
-abstraction is still atomic and [linearizable](https://en.wikipedia.org/wiki/Linearizability) (for
-example, reads cannot observe values overwritten before the read began, among other
+abstraction is still
+[linearizable](https://en.wikipedia.org/wiki/Linearizability) (for example,
+reads cannot observe values overwritten before the read began, among other
 characteristics).
 
-The servers feature no replication, so a collection of servers does not provide
+The servers feature no replication, so a *collection* of servers does not provide
 a unified service that emulates a linearizable register as the servers will not
 generally agree upon the last value they received.
 
