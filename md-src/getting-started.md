@@ -13,7 +13,8 @@ that even this minimal example is susceptible to surprising behavior.
 [Install the Rust programming
 language](https://www.rust-lang.org/learn/get-started) if it is not already
 installed, then initialize a new project using the `cargo` utility included
-with Rust.
+with Rust. If you are new to Rust, then you may want to review some of the
+language's [learning resources](https://www.rust-lang.org/learn).
 
 ```sh
 mkdir getting-started
