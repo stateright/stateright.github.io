@@ -3,7 +3,7 @@
 [![crates.io](https://img.shields.io/crates/d/stateright.svg)](https://crates.io/crates/stateright)
 [![docs.rs](https://docs.rs/stateright/badge.svg)](https://docs.rs/stateright)
 [![stars](https://img.shields.io/github/stars/stateright/stateright?style=social)](https://github.com/stateright/stateright/stargazers)
-[![watchers](https://img.shields.io/github/watchers/stateright/stateright?style=social)](https://github.com/stateright/stateright/watchers)
+[![youtube](https://img.shields.io/youtube/views/Oh0Dmz6asbs?style=social)](https://youtube.com/playlist?list=PLUhyBsVvEJjaF1VpNhLRfIA4E7CFPirmz)
 
 # Building Distributed Systems With Stateright
 
@@ -45,4 +45,6 @@ design, Stateright is able to verify the underlying system *implementation* in
 addition to the design.
 
 We'll jump right in with a motivating example in the first chapter, [Getting
-Started](./getting-started.md).
+Started](./getting-started.md). Please see the [Stateright YouTube
+channel](https://www.youtube.com/playlist?list=PLUhyBsVvEJjaF1VpNhLRfIA4E7CFPirmz)
+if you prefer starting with a video introduction.
