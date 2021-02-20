@@ -42,7 +42,11 @@ as [the TLA+ model
 checker](https://lamport.azurewebsites.net/tla/industrial-use.html) to achieve
 the same goal, but whereas those solutions typically verify a high level system
 design, Stateright is able to verify the underlying system *implementation* in
-addition to the design.
+addition to the design. On the other end of the spectrum are software such as
+[Jepsen](https://jepsen.io/) which can validate a final implementation by
+testing a random subset of the system's behavior, whereas Stateright can
+systematically enumerate all possible behaviors within a specified model of the
+system.
 
 We'll jump right in with a motivating example in the first chapter, [Getting
 Started](./getting-started.md). Please see the [Stateright YouTube

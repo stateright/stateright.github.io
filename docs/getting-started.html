@@ -95,7 +95,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="title-page.html">Building Distributed Systems With Stateright</a></li><li class="chapter-item expanded "><a href="getting-started.html" class="active"><strong aria-hidden="true">1.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="taming-the-network.html"><strong aria-hidden="true">2.</strong> Taming the Network</a></li><li class="chapter-item expanded "><a href="seeking-consensus.html"><strong aria-hidden="true">3.</strong> Seeking Consensus</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="title-page.html">Building Distributed Systems With Stateright</a></li><li class="chapter-item expanded "><a href="getting-started.html" class="active"><strong aria-hidden="true">1.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="taming-the-network.html"><strong aria-hidden="true">2.</strong> Taming the Network</a></li><li class="chapter-item expanded "><a href="seeking-consensus.html"><strong aria-hidden="true">3.</strong> Seeking Consensus</a></li><li class="chapter-item expanded "><a href="achieving-linearizability.html"><strong aria-hidden="true">4.</strong> Achieving Linearizability</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -302,6 +302,17 @@ state, providing its clients with a simple form of distributed storage,
 sometimes known as a <a href="https://en.wikipedia.org/wiki/Shared_register">shared
 register</a>.  Responses are linked
 to requests via a request ID chosen by the client.</p>
+<p>Stateright must have visibility of every actor/input output to facilitate
+enumerating possible system behaviors. That means the actor should only
+interface with the outside world via events passed by the Stateright framework.</p>
+<p><code>state: &amp;mut</code>
+<a href="https://doc.rust-lang.org/std/borrow/enum.Cow.html"><code>Cow&lt;Self::State&gt;</code></a> is a
+clone-on-write smart pointer keeping track of whether the actor's internal
+state changed while <code>o: &amp;mut</code>
+<a href="https://docs.rs/stateright/latest/stateright/actor/struct.Out.html"><code>Out&lt;Self&gt;</code></a>
+is a container recording output/commands. Commands recorded by methods such as
+<a href="https://docs.rs/stateright/latest/stateright/actor/struct.Out.html#method.send"><code>Out::send(...)</code></a>
+do not take effect until the method returns.</p>
 <pre><code class="language-rust ignore noplayground">
 type RequestId = u64;
 
@@ -344,25 +355,50 @@ example &quot;<em>if clients write <code>X</code> followed by <code>Y</code> to 
 regardless of how the network reorders or redelivers messages</em>.&quot;</p>
 <p>The test checks the system for a property called
 <a href="https://en.wikipedia.org/wiki/Linearizability">linearizability</a>, which loosely
-speaking means that the visible behavior of the register abstraction provided
-by the actors is identical to that of a register within a single-threaded
-system.</p>
+speaking means that the visible behavior of the register emulated by the actor
+system is identical to that of a register within a single-threaded system. In
+the words of the individuals who coined the term:</p>
+<blockquote>
+<p>Linearizability provides the illusion that each operation applied by
+concurrent processes takes effect instantaneously at some point between its
+invocation and its response, implying that the meaning of a concurrent object’s
+operations can be given by pre- and post-conditions.</p>
+<ul>
+<li>Maurice Herlihy and Jeannette Wing, in <a href="https://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.142.5315">Linearizability: A Correctness
+Condition for Concurrent
+Objects</a></li>
+</ul>
+</blockquote>
+<p>An important aspect of linearizability is the notion of a &quot;sequential
+specification,&quot; which serves as a reference for correct behavior of the system.
+In other words, the system <em>emulates</em> the sequential specification.
+For instance, the sequential specification could indicate:</p>
+<ul>
+<li>the system behaves like a memory cell (i.e. register semantics),</li>
+<li>the system behaves like a queue,</li>
+<li>or the system behaves like a stack.</li>
+</ul>
+<p>That means that when someone indicates that a system is linearizable, it is
+important to keep in mind the question &quot;linearizable with respect to <em>what</em>?&quot;
+In this chapter, the sequential specification is register semantics, provided
+by Stateright, but later chapters will involve other sequential specifications.</p>
 <blockquote>
 <p><strong>Terminology</strong>: The term &quot;linearizable&quot; derives from the insight that the
-operations executed by a system form a directed acyclic graph where edges
-indicate &quot;happens before.&quot; For example, if Computer1 sends messages to invoke
-operations on Computer2 and Computer3, then the message sends happens before
-Computer2 or Computer3 handle them, but the handling of the messages by
+operations executed by a system form a directed acyclic graph (a partial order)
+where edges indicate &quot;happens before.&quot; For example, if Computer1 sends messages
+to invoke operations on Computer2 and Computer3, then the message sends happens
+before Computer2 or Computer3 handle them, but the handling of the messages by
 Computer2 and Computer 3 lack a defined order because the messages
 <a href="https://en.wikipedia.org/wiki/Race_condition">race</a>. A &quot;linearization&quot; defines
-a viable linear order such as &quot;Computer 1 sends the messages, Computer 3
-handles one, and then Computer2 handles the other.&quot; A system is not
-linearizable when its behavior cannot be mapped to a linearization. For
-example, if the operation invoked on Computer2 was <code>Append &quot;Hello&quot;</code> and
-Computer3 was <code>Append &quot;World&quot;</code>, but the final value interlaced the inputs to
-form <code>&quot;WolloHerld&quot;</code>, then the system would not be linearizable. Either
-<code>&quot;HelloWorld&quot;</code> or <code>&quot;WorldHello&quot;</code> on the other hand would be valid
-linearizations since the messages race.</p>
+a viable linear order of seemingly atomic events such as &quot;Computer 1 sends the
+messages, Computer 3 handles one, and then Computer2 handles the other.&quot; A
+system is not linearizable when its behavior cannot be mapped to a
+linearization. For example, if the operation invoked on Computer2 was <code>Append &quot;Hello&quot;</code> and Computer3 was <code>Append &quot;World&quot;</code>, but the final value interlaced the
+inputs to form <code>&quot;WolloHerld&quot;</code>, then the system would not be linearizable.
+Either <code>&quot;HelloWorld&quot;</code> or <code>&quot;WorldHello&quot;</code> on the other hand would be valid
+linearizations since the messages race. While this kind of understanding is not
+needed to validate a system for linearizability, it will assist you in
+debugging when Stateright indicates that a system is not linearizable.</p>
 </blockquote>
 <p>The test leverages
 <a href="https://docs.rs/stateright/0.18.0/stateright/actor/register/struct.RegisterTestSystem.html"><code>RegisterTestSystem</code></a>,

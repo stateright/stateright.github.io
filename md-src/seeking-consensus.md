@@ -160,15 +160,6 @@ for debugging as needed.
 ## Summary
 
 This chapter introduced replication, and Stateright was able to find a bug in
-our replication protocol. The next chapter will introduce a more sophisticated
-protocol that makes the replicated register linearizable.
-
-That next chapter is not yet available, so in the meantime you can learn more
-about Stateright by browsing additional [Stateright
-examples](https://github.com/stateright/stateright/tree/master/examples) and
-reviewing the [Stateright API docs](https://docs.rs/stateright).
-
-If you have any questions, comments, or ideas, please share them on
-[Stateright's Discord server](https://discord.com/channels/781357978652901386).
-At this time Stateright is a small personal project, and the main author is
-eager to hear community feedback.
+our replication protocol. The next chapter, [`Achieving
+Linearizability`](./achieving-linearizability.md) introduces a more
+sophisticated protocol that makes the replicated register linearizable.

@@ -97,7 +97,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="title-page.html">Building Distributed Systems With Stateright</a></li><li class="chapter-item expanded "><a href="getting-started.html"><strong aria-hidden="true">1.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="taming-the-network.html"><strong aria-hidden="true">2.</strong> Taming the Network</a></li><li class="chapter-item expanded "><a href="seeking-consensus.html"><strong aria-hidden="true">3.</strong> Seeking Consensus</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="title-page.html">Building Distributed Systems With Stateright</a></li><li class="chapter-item expanded "><a href="getting-started.html"><strong aria-hidden="true">1.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="taming-the-network.html"><strong aria-hidden="true">2.</strong> Taming the Network</a></li><li class="chapter-item expanded "><a href="seeking-consensus.html"><strong aria-hidden="true">3.</strong> Seeking Consensus</a></li><li class="chapter-item expanded "><a href="achieving-linearizability.html"><strong aria-hidden="true">4.</strong> Achieving Linearizability</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -209,7 +209,11 @@ as <a href="https://lamport.azurewebsites.net/tla/industrial-use.html">the TLA+ 
 checker</a> to achieve
 the same goal, but whereas those solutions typically verify a high level system
 design, Stateright is able to verify the underlying system <em>implementation</em> in
-addition to the design.</p>
+addition to the design. On the other end of the spectrum are software such as
+<a href="https://jepsen.io/">Jepsen</a> which can validate a final implementation by
+testing a random subset of the system's behavior, whereas Stateright can
+systematically enumerate all possible behaviors within a specified model of the
+system.</p>
 <p>We'll jump right in with a motivating example in the first chapter, <a href="./getting-started.html">Getting
 Started</a>. Please see the <a href="https://www.youtube.com/playlist?list=PLUhyBsVvEJjaF1VpNhLRfIA4E7CFPirmz">Stateright YouTube
 channel</a>
@@ -349,6 +353,17 @@ state, providing its clients with a simple form of distributed storage,
 sometimes known as a <a href="https://en.wikipedia.org/wiki/Shared_register">shared
 register</a>.  Responses are linked
 to requests via a request ID chosen by the client.</p>
+<p>Stateright must have visibility of every actor/input output to facilitate
+enumerating possible system behaviors. That means the actor should only
+interface with the outside world via events passed by the Stateright framework.</p>
+<p><code>state: &amp;mut</code>
+<a href="https://doc.rust-lang.org/std/borrow/enum.Cow.html"><code>Cow&lt;Self::State&gt;</code></a> is a
+clone-on-write smart pointer keeping track of whether the actor's internal
+state changed while <code>o: &amp;mut</code>
+<a href="https://docs.rs/stateright/latest/stateright/actor/struct.Out.html"><code>Out&lt;Self&gt;</code></a>
+is a container recording output/commands. Commands recorded by methods such as
+<a href="https://docs.rs/stateright/latest/stateright/actor/struct.Out.html#method.send"><code>Out::send(...)</code></a>
+do not take effect until the method returns.</p>
 <pre><code class="language-rust ignore noplayground">
 type RequestId = u64;
 
@@ -391,25 +406,50 @@ example &quot;<em>if clients write <code>X</code> followed by <code>Y</code> to 
 regardless of how the network reorders or redelivers messages</em>.&quot;</p>
 <p>The test checks the system for a property called
 <a href="https://en.wikipedia.org/wiki/Linearizability">linearizability</a>, which loosely
-speaking means that the visible behavior of the register abstraction provided
-by the actors is identical to that of a register within a single-threaded
-system.</p>
+speaking means that the visible behavior of the register emulated by the actor
+system is identical to that of a register within a single-threaded system. In
+the words of the individuals who coined the term:</p>
+<blockquote>
+<p>Linearizability provides the illusion that each operation applied by
+concurrent processes takes effect instantaneously at some point between its
+invocation and its response, implying that the meaning of a concurrent object’s
+operations can be given by pre- and post-conditions.</p>
+<ul>
+<li>Maurice Herlihy and Jeannette Wing, in <a href="https://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.142.5315">Linearizability: A Correctness
+Condition for Concurrent
+Objects</a></li>
+</ul>
+</blockquote>
+<p>An important aspect of linearizability is the notion of a &quot;sequential
+specification,&quot; which serves as a reference for correct behavior of the system.
+In other words, the system <em>emulates</em> the sequential specification.
+For instance, the sequential specification could indicate:</p>
+<ul>
+<li>the system behaves like a memory cell (i.e. register semantics),</li>
+<li>the system behaves like a queue,</li>
+<li>or the system behaves like a stack.</li>
+</ul>
+<p>That means that when someone indicates that a system is linearizable, it is
+important to keep in mind the question &quot;linearizable with respect to <em>what</em>?&quot;
+In this chapter, the sequential specification is register semantics, provided
+by Stateright, but later chapters will involve other sequential specifications.</p>
 <blockquote>
 <p><strong>Terminology</strong>: The term &quot;linearizable&quot; derives from the insight that the
-operations executed by a system form a directed acyclic graph where edges
-indicate &quot;happens before.&quot; For example, if Computer1 sends messages to invoke
-operations on Computer2 and Computer3, then the message sends happens before
-Computer2 or Computer3 handle them, but the handling of the messages by
+operations executed by a system form a directed acyclic graph (a partial order)
+where edges indicate &quot;happens before.&quot; For example, if Computer1 sends messages
+to invoke operations on Computer2 and Computer3, then the message sends happens
+before Computer2 or Computer3 handle them, but the handling of the messages by
 Computer2 and Computer 3 lack a defined order because the messages
 <a href="https://en.wikipedia.org/wiki/Race_condition">race</a>. A &quot;linearization&quot; defines
-a viable linear order such as &quot;Computer 1 sends the messages, Computer 3
-handles one, and then Computer2 handles the other.&quot; A system is not
-linearizable when its behavior cannot be mapped to a linearization. For
-example, if the operation invoked on Computer2 was <code>Append &quot;Hello&quot;</code> and
-Computer3 was <code>Append &quot;World&quot;</code>, but the final value interlaced the inputs to
-form <code>&quot;WolloHerld&quot;</code>, then the system would not be linearizable. Either
-<code>&quot;HelloWorld&quot;</code> or <code>&quot;WorldHello&quot;</code> on the other hand would be valid
-linearizations since the messages race.</p>
+a viable linear order of seemingly atomic events such as &quot;Computer 1 sends the
+messages, Computer 3 handles one, and then Computer2 handles the other.&quot; A
+system is not linearizable when its behavior cannot be mapped to a
+linearization. For example, if the operation invoked on Computer2 was <code>Append &quot;Hello&quot;</code> and Computer3 was <code>Append &quot;World&quot;</code>, but the final value interlaced the
+inputs to form <code>&quot;WolloHerld&quot;</code>, then the system would not be linearizable.
+Either <code>&quot;HelloWorld&quot;</code> or <code>&quot;WorldHello&quot;</code> on the other hand would be valid
+linearizations since the messages race. While this kind of understanding is not
+needed to validate a system for linearizability, it will assist you in
+debugging when Stateright indicates that a system is not linearizable.</p>
 </blockquote>
 <p>The test leverages
 <a href="https://docs.rs/stateright/0.18.0/stateright/actor/register/struct.RegisterTestSystem.html"><code>RegisterTestSystem</code></a>,
@@ -1125,10 +1165,553 @@ for debugging as needed.</p>
 </blockquote>
 <h2><a class="header" href="#summary-2" id="summary-2">Summary</a></h2>
 <p>This chapter introduced replication, and Stateright was able to find a bug in
-our replication protocol. The next chapter will introduce a more sophisticated
-protocol that makes the replicated register linearizable.</p>
-<p>That next chapter is not yet available, so in the meantime you can learn more
-about Stateright by browsing additional <a href="https://github.com/stateright/stateright/tree/master/examples">Stateright
+our replication protocol. The next chapter, <a href="./achieving-linearizability.html"><code>Achieving Linearizability</code></a> introduces a more
+sophisticated protocol that makes the replicated register linearizable.</p>
+<h1><a class="header" href="#chapter-4-achieving-linearizability" id="chapter-4-achieving-linearizability">Chapter 4: Achieving Linearizability</a></h1>
+<p>In the last chapter we implemented a faulty replication protocol that violated
+linearizability because the emulated register was not atomic. This chapter
+introduces a more sophisticated replication protocol that the author first
+learned about when reading the blog post &quot;<a href="https://muratbuffalo.blogspot.com/2012/05/replicatedfault-tolerant-atomic-storage.html">Replicated/Fault-tolerant atomic
+storage</a>&quot;
+by Murat Demirbas.</p>
+<p>As usual, we start by initializing a new Rust project:</p>
+<pre><code class="language-sh">mkdir achieving-linearizability
+cd achieving-linearizability
+cargo init
+</code></pre>
+<p>Then we define dependencies.</p>
+<pre><code class="language-toml">[package]
+name = &quot;achieving-linearizability&quot;
+version = &quot;0.1.0&quot;
+authors = [&quot;Jonathan Nadal &lt;jon.nadal@gmail.com&gt;&quot;]
+edition = &quot;2018&quot;
+
+[dependencies]
+env_logger = &quot;0.7&quot;
+serde = &quot;1.0&quot;
+serde_json = &quot;1.0&quot;
+stateright = &quot;0.22&quot;
+</code></pre>
+<h2><a class="header" href="#a-truly-atomic-register" id="a-truly-atomic-register">A Truly Atomic Register</a></h2>
+<p>One problem with the earlier protocol is that reads can observe different
+values depending on which server accepts the read. We need to amend the
+protocol to ensure that given the same aggregate system state, any two reads
+are guaranteed to observe the same value. The simplest solution is to query
+every server when servicing a read operation, but that introduces yet another
+problem: availability. By forcing reads to query every server, if a single
+server becomes unavailable, the entire system becomes unavailable. This problem
+also exists for writes in that replication protocol.</p>
+<p>The trick to solving this new problem is observing that we only need to ensure
+that &quot;read sets&quot; overlap one another. If a majority of servers agree on a
+value, then we know that any other majority of servers must either agree on the
+same value or must have a different value that is not part of the majority.  We
+can apply the same logic to the &quot;write set&quot; as well.  We call the set of
+sufficient reads a &quot;read quorum&quot; and the set of sufficient writes a &quot;write
+quorum.&quot;</p>
+<p>Leveraging read and write quorums solves the availability problem when a
+minority of servers are unreachable, but we still have a second availability
+problem: in many cases a read set will not agree on a value. This can happen if
+the read is concurrent with a write or if two earlier writes were concurrent.
+In those cases, the server accepting the read must either ignore the request or
+return an error, upon which we can improve.</p>
+<p>To solve this remaining problem, we simply need to force the system into
+agreement, thereby ensuring any subsequent read either observes the forced
+agreement or a subsequent write. This is the technique employed by Attiya,
+Bar-Noy, and Dolev in their paper &quot;<a href="https://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.96.5395">Sharing Memory Robustly in Message-Passing
+Systems</a>&quot;.</p>
+<p>Both read and write operations are handled in two phases: (1) a <strong>query</strong> phase
+followed by (2) a <strong>replication</strong> phase.</p>
+<ul>
+<li><strong>1. Query Phase</strong>: In the query phase, a server finds out what replicated
+values a quorum of replicas has previously accepted. The replicas also
+return a <a href="https://en.wikipedia.org/wiki/Logical_clock">logical clock</a> that
+serves to sequence earlier write operations, so the implementation will refer
+to this as a <em>sequencer</em>.</li>
+<li><strong>2a. Write Replication Phase</strong>: If servicing a write, then upon receiving
+responses from a quorum, the server replicates the chosen value along with a
+slightly larger sequencer than the one observed. Once a majority of the
+replicas ack this second phase, the server can indicate to the client that
+the write is complete.</li>
+<li><strong>2b. Read Replication Phase</strong>: If servicing a read, then upon receiving
+responses from a quorum, the server replicates the value with the largest
+observed sequencer. Once a majority of the replicas ack this second phase,
+the server can return the value that it replicated.</li>
+</ul>
+<h2><a class="header" href="#implementation-walkthrough-3" id="implementation-walkthrough-3">Implementation Walkthrough</a></h2>
+<p>We first define our message type. <code>Abd...</code> in the type refers to the names of
+the algorithm's original author's -- Attiya, Bar-Noy, and Dolev -- or &quot;ABD.&quot;</p>
+<pre><code class="language-rust ignore noplayground">#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize)]
+enum AbdMsg {
+    Query(TestRequestId),
+    AckQuery(TestRequestId, Seq, TestValue),
+    Replicate(TestRequestId, Seq, TestValue),
+    AckReplicate(TestRequestId),
+}
+</code></pre>
+<p>The current implementation combines the roles of &quot;replica&quot; and &quot;coordinator
+that accepts a request and facilitates replication.&quot; <code>seq</code> and <code>val</code> are for
+the first role, while <code>phase</code> tracks information needed by the second role.</p>
+<p>Of particular note is that for phase 1, writes need to remember what value to
+later replicate, which is stored in <code>write</code>. Conversely for phase 2, reads need
+to remember what value to later return to the client, which is stored in
+<code>read</code>.</p>
+<pre><code class="language-rust ignore noplayground">#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+struct AbdState {
+    seq: Seq,
+    val: TestValue,
+    phase: Option&lt;AbdPhase&gt;,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+enum AbdPhase {
+    Phase1 {
+        request_id: TestRequestId,
+        requester_id: Id,
+        write: Option&lt;TestValue&gt;, // `None` for read
+        responses: HashableHashMap&lt;Id, (Seq, TestValue)&gt;,
+    },
+    Phase2 {
+        request_id: TestRequestId,
+        requester_id: Id,
+        read: Option&lt;TestValue&gt;, // `None` for write
+        acks: HashableHashSet&lt;Id&gt;,
+    },
+}
+
+type Seq = (WriteCount, Id); // `Id` for uniqueness
+type WriteCount = u64;
+</code></pre>
+<p>We are now ready to implement the protocol. Note that the implementation
+intentionally avoids decomposing the message handlers into different function
+calls because each call needs to manage shared actor state. Spreading state
+mutation across multiple locations in the source code arguably makes the
+implementation harder to follow (much like mutable global variables), and
+functions are only used where they can be reasoned about locally.</p>
+<p>An alternative composition strategy that does often work well for actor systems
+involves distinguishing roles so that each has less state (having different
+<code>AbdServer</code> and <code>AbdReplica</code> actors for example), although we will not do that
+for this short example. The next chapter on the other hand will demonstrate how
+to compose a system of different actor types.</p>
+<pre><code class="language-rust ignore noplayground">#[derive(Clone)]
+struct AbdActor {
+    peers: Vec&lt;Id&gt;,
+}
+
+impl Actor for AbdActor {
+    type Msg = RegisterMsg&lt;TestRequestId, TestValue, AbdMsg&gt;;
+    type State = AbdState;
+
+    fn on_start(&amp;self, _id: Id, _o: &amp;mut Out&lt;Self&gt;) -&gt; Self::State {
+        AbdState {
+            seq: (0, Id::from(0)),
+            val: '?',
+            phase: None,
+        }
+    }
+
+    fn on_msg(&amp;self, id: Id, state: &amp;mut Cow&lt;Self::State&gt;,
+              src: Id, msg: Self::Msg, o: &amp;mut Out&lt;Self&gt;) {
+        use RegisterMsg::*;
+        match msg {
+            Put(req_id, val) if state.phase.is_none() =&gt; {
+                o.broadcast(&amp;self.peers, &amp;Internal(Query(req_id)));
+                state.to_mut().phase = Some(AbdPhase::Phase1 {
+                    request_id: req_id,
+                    requester_id: src,
+                    write: Some(val),
+                    responses: {
+                        let mut responses = HashableHashMap::default();
+                        responses.insert(id, (state.seq, state.val.clone()));
+                        responses
+                    },
+                });
+            }
+            Get(req_id) if state.phase.is_none() =&gt; {
+                o.broadcast(&amp;self.peers, &amp;Internal(Query(req_id)));
+                state.to_mut().phase = Some(AbdPhase::Phase1 {
+                    request_id: req_id,
+                    requester_id: src,
+                    write: None,
+                    responses: {
+                        let mut responses = HashableHashMap::default();
+                        responses.insert(id, (state.seq, state.val.clone()));
+                        responses
+                    },
+                });
+            }
+            Internal(Query(req_id)) =&gt; {
+                o.send(
+                    src,
+                    Internal(AckQuery(req_id, state.seq, state.val.clone())));
+            }
+            Internal(AckQuery(expected_req_id, seq, val))
+                if matches!(state.phase,
+                            Some(AbdPhase::Phase1 { request_id, .. })
+                            if request_id == expected_req_id) =&gt;
+            {
+                let mut state = state.to_mut();
+                if let Some(AbdPhase::Phase1 {
+                    request_id: req_id,
+                    requester_id: requester,
+                    write,
+                    responses,
+                    ..
+                }) = &amp;mut state.phase {
+                    responses.insert(src, (seq, val));
+                    if responses.len() == majority(self.peers.len() + 1) {
+                        // Quorum reached. Move to phase 2.
+
+                        // Determine sequencer and value.
+                        let (_, (seq, val)) = responses.into_iter()
+                            .max_by_key(|(_, (seq, _))| seq)
+                            .unwrap();
+                        let mut seq = *seq;
+                        let mut read = None;
+                        let val = if let Some(val) = std::mem::take(write) {
+                            seq = (seq.0 + 1, id);
+                            val
+                        } else {
+                            read = Some(val.clone());
+                            val.clone()
+                        };
+
+                        o.broadcast(
+                            &amp;self.peers,
+                            &amp;Internal(Replicate(*req_id, seq, val.clone())));
+
+                        state.seq = seq;
+                        state.val = val;
+
+                        let mut acks = HashableHashSet::default();
+                        acks.insert(id);
+
+                        state.phase = Some(AbdPhase::Phase2 {
+                            request_id: *req_id,
+                            requester_id: std::mem::take(requester),
+                            read,
+                            acks,
+                        });
+                    }
+                }
+            }
+            Internal(Replicate(req_id, seq, val)) =&gt; {
+                o.send(src, Internal(AckReplicate(req_id)));
+                if seq &gt; state.seq {
+                    let mut state = state.to_mut();
+                    state.seq = seq;
+                    state.val = val;
+                }
+            }
+            Internal(AckReplicate(expected_req_id))
+                if matches!(state.phase,
+                            Some(AbdPhase::Phase2 { request_id, .. })
+                            if request_id == expected_req_id) =&gt;
+            {
+                let mut state = state.to_mut();
+                if let Some(AbdPhase::Phase2 {
+                    request_id: req_id,
+                    requester_id: requester,
+                    read,
+                    acks,
+                    ..
+                }) = &amp;mut state.phase {
+                    acks.insert(src);
+                    if acks.len() == majority(self.peers.len() + 1) {
+                        let msg = if let Some(val) = read {
+                            GetOk(*req_id, std::mem::take(val))
+                        } else {
+                            PutOk(*req_id)
+                        };
+                        o.send(*requester, msg);
+                        state.phase = None;
+                    }
+                }
+            }
+            _ =&gt; {}
+        }
+    }
+}
+</code></pre>
+<p>The test case confirms that this implementation is linearizable. Remember to
+run the tests with the <code>--release</code> flag if you want to check with a larger
+number of clients or servers, as the state space grows rapidly.</p>
+<pre><code class="language-rust ignore noplayground">    let checker = RegisterTestSystem {
+        servers: vec![
+            AbdActor { peers: model_peers(0, 2) },
+            AbdActor { peers: model_peers(1, 2) },
+        ],
+        client_count: 2,
+        within_boundary: |state| {
+            state.actor_states.iter().all(|s| {
+                if let RegisterActorState::Server(s) = &amp;**s {
+                    s.seq.0 &lt;= 3
+                } else {
+                    true
+                }
+            })
+        },
+        duplicating_network: DuplicatingNetwork::No,
+        .. Default::default()
+    }.into_model().checker()
+    .spawn_dfs().join();
+    checker.assert_properties();
+</code></pre>
+<h2><a class="header" href="#complete-implementation-1" id="complete-implementation-1">Complete Implementation</a></h2>
+<p>Here is the complete implementation for <code>main.rs</code>:</p>
+<pre><code class="language-rust ignore noplayground">use serde::{Deserialize, Serialize};
+use stateright::actor::{*, register::*};
+use stateright::util::{HashableHashMap, HashableHashSet};
+use std::borrow::Cow;
+use std::fmt::Debug;
+use std::hash::Hash;
+use std::net::{SocketAddrV4, Ipv4Addr};
+
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Serialize, Deserialize)]
+enum AbdMsg {
+    Query(TestRequestId),
+    AckQuery(TestRequestId, Seq, TestValue),
+    Replicate(TestRequestId, Seq, TestValue),
+    AckReplicate(TestRequestId),
+}
+use AbdMsg::*;
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+struct AbdState {
+    seq: Seq,
+    val: TestValue,
+    phase: Option&lt;AbdPhase&gt;,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+enum AbdPhase {
+    Phase1 {
+        request_id: TestRequestId,
+        requester_id: Id,
+        write: Option&lt;TestValue&gt;, // `None` for read
+        responses: HashableHashMap&lt;Id, (Seq, TestValue)&gt;,
+    },
+    Phase2 {
+        request_id: TestRequestId,
+        requester_id: Id,
+        read: Option&lt;TestValue&gt;, // `None` for write
+        acks: HashableHashSet&lt;Id&gt;,
+    },
+}
+
+type Seq = (WriteCount, Id); // `Id` for uniqueness
+type WriteCount = u64;
+
+#[derive(Clone)]
+struct AbdActor {
+    peers: Vec&lt;Id&gt;,
+}
+
+impl Actor for AbdActor {
+    type Msg = RegisterMsg&lt;TestRequestId, TestValue, AbdMsg&gt;;
+    type State = AbdState;
+
+    fn on_start(&amp;self, _id: Id, _o: &amp;mut Out&lt;Self&gt;) -&gt; Self::State {
+        AbdState {
+            seq: (0, Id::from(0)),
+            val: '?',
+            phase: None,
+        }
+    }
+
+    fn on_msg(&amp;self, id: Id, state: &amp;mut Cow&lt;Self::State&gt;,
+              src: Id, msg: Self::Msg, o: &amp;mut Out&lt;Self&gt;) {
+        use RegisterMsg::*;
+        match msg {
+            Put(req_id, val) if state.phase.is_none() =&gt; {
+                o.broadcast(&amp;self.peers, &amp;Internal(Query(req_id)));
+                state.to_mut().phase = Some(AbdPhase::Phase1 {
+                    request_id: req_id,
+                    requester_id: src,
+                    write: Some(val),
+                    responses: {
+                        let mut responses = HashableHashMap::default();
+                        responses.insert(id, (state.seq, state.val.clone()));
+                        responses
+                    },
+                });
+            }
+            Get(req_id) if state.phase.is_none() =&gt; {
+                o.broadcast(&amp;self.peers, &amp;Internal(Query(req_id)));
+                state.to_mut().phase = Some(AbdPhase::Phase1 {
+                    request_id: req_id,
+                    requester_id: src,
+                    write: None,
+                    responses: {
+                        let mut responses = HashableHashMap::default();
+                        responses.insert(id, (state.seq, state.val.clone()));
+                        responses
+                    },
+                });
+            }
+            Internal(Query(req_id)) =&gt; {
+                o.send(
+                    src,
+                    Internal(AckQuery(req_id, state.seq, state.val.clone())));
+            }
+            Internal(AckQuery(expected_req_id, seq, val))
+                if matches!(state.phase,
+                            Some(AbdPhase::Phase1 { request_id, .. })
+                            if request_id == expected_req_id) =&gt;
+            {
+                let mut state = state.to_mut();
+                if let Some(AbdPhase::Phase1 {
+                    request_id: req_id,
+                    requester_id: requester,
+                    write,
+                    responses,
+                    ..
+                }) = &amp;mut state.phase {
+                    responses.insert(src, (seq, val));
+                    if responses.len() == majority(self.peers.len() + 1) {
+                        // Quorum reached. Move to phase 2.
+
+                        // Determine sequencer and value.
+                        let (_, (seq, val)) = responses.into_iter()
+                            .max_by_key(|(_, (seq, _))| seq)
+                            .unwrap();
+                        let mut seq = *seq;
+                        let mut read = None;
+                        let val = if let Some(val) = std::mem::take(write) {
+                            seq = (seq.0 + 1, id);
+                            val
+                        } else {
+                            read = Some(val.clone());
+                            val.clone()
+                        };
+
+                        o.broadcast(
+                            &amp;self.peers,
+                            &amp;Internal(Replicate(*req_id, seq, val.clone())));
+
+                        state.seq = seq;
+                        state.val = val;
+
+                        let mut acks = HashableHashSet::default();
+                        acks.insert(id);
+
+                        state.phase = Some(AbdPhase::Phase2 {
+                            request_id: *req_id,
+                            requester_id: std::mem::take(requester),
+                            read,
+                            acks,
+                        });
+                    }
+                }
+            }
+            Internal(Replicate(req_id, seq, val)) =&gt; {
+                o.send(src, Internal(AckReplicate(req_id)));
+                if seq &gt; state.seq {
+                    let mut state = state.to_mut();
+                    state.seq = seq;
+                    state.val = val;
+                }
+            }
+            Internal(AckReplicate(expected_req_id))
+                if matches!(state.phase,
+                            Some(AbdPhase::Phase2 { request_id, .. })
+                            if request_id == expected_req_id) =&gt;
+            {
+                let mut state = state.to_mut();
+                if let Some(AbdPhase::Phase2 {
+                    request_id: req_id,
+                    requester_id: requester,
+                    read,
+                    acks,
+                    ..
+                }) = &amp;mut state.phase {
+                    acks.insert(src);
+                    if acks.len() == majority(self.peers.len() + 1) {
+                        let msg = if let Some(val) = read {
+                            GetOk(*req_id, std::mem::take(val))
+                        } else {
+                            PutOk(*req_id)
+                        };
+                        o.send(*requester, msg);
+                        state.phase = None;
+                    }
+                }
+            }
+            _ =&gt; {}
+        }
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn is_linearizable() {
+    use stateright::{Checker, Model};
+
+    let checker = RegisterTestSystem {
+        servers: vec![
+            AbdActor { peers: model_peers(0, 2) },
+            AbdActor { peers: model_peers(1, 2) },
+        ],
+        client_count: 2,
+        within_boundary: |state| {
+            state.actor_states.iter().all(|s| {
+                if let RegisterActorState::Server(s) = &amp;**s {
+                    s.seq.0 &lt;= 3
+                } else {
+                    true
+                }
+            })
+        },
+        duplicating_network: DuplicatingNetwork::No,
+        .. Default::default()
+    }.into_model().checker()
+    .spawn_dfs().join();
+    checker.assert_properties();
+}
+
+fn main() {
+    env_logger::init_from_env(
+        env_logger::Env::default().default_filter_or(&quot;info&quot;));
+    let id0 = Id::from(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3000));
+    let id1 = Id::from(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3001));
+    let id2 = Id::from(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3002));
+    let handles = spawn(
+        serde_json::to_vec,
+        |bytes| serde_json::from_slice(bytes),
+        vec![
+            (id0, AbdActor { peers: vec![id1, id2] }),
+            (id1, AbdActor { peers: vec![id0, id2] }),
+            (id2, AbdActor { peers: vec![id0, id1] }),
+        ]);
+    for h in handles { let _ = h.join(); }
+}
+</code></pre>
+<h2><a class="header" href="#suggested-exercises-1" id="suggested-exercises-1">Suggested Exercises</a></h2>
+<ol>
+<li>
+<p>This algorithm can be optimized by observing that the replication phases
+need not replicate values if the quorum already agrees on a value. See if
+you can implement this optimization.</p>
+</li>
+<li>
+<p>More generally, replication messages only need to be sent to replicas that
+disagree. See if you can implement this optimization as well.</p>
+<blockquote>
+<p>TIP: This is a slightly more complex optimization because we need to treat
+&quot;all agree&quot; versus &quot;not all agree&quot; slightly differently to avoid dropping
+requests in some cases. Can you see why?</p>
+</blockquote>
+</li>
+</ol>
+<h2><a class="header" href="#summary-3" id="summary-3">Summary</a></h2>
+<p>This chapter provided the first taste of a real distributed algorithm. We were
+able to incrementally infer a solution, but it was nontrivial. If there
+were bugs in the code, they could be relatively difficult to identify without a
+model checker.</p>
+<p>In the next chapter, we will introduce the notion of &quot;consensus&quot; and implement
+it via the Multi-Paxos algorithm. That chapter is not yet available, so in the
+meantime you can learn more about Stateright by browsing additional <a href="https://github.com/stateright/stateright/tree/master/examples">Stateright
 examples</a> and
 reviewing the <a href="https://docs.rs/stateright">Stateright API docs</a>.</p>
 <p>If you have any questions, comments, or ideas, please share them on

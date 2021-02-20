@@ -95,7 +95,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="title-page.html" class="active">Building Distributed Systems With Stateright</a></li><li class="chapter-item expanded "><a href="getting-started.html"><strong aria-hidden="true">1.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="taming-the-network.html"><strong aria-hidden="true">2.</strong> Taming the Network</a></li><li class="chapter-item expanded "><a href="seeking-consensus.html"><strong aria-hidden="true">3.</strong> Seeking Consensus</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="title-page.html" class="active">Building Distributed Systems With Stateright</a></li><li class="chapter-item expanded "><a href="getting-started.html"><strong aria-hidden="true">1.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="taming-the-network.html"><strong aria-hidden="true">2.</strong> Taming the Network</a></li><li class="chapter-item expanded "><a href="seeking-consensus.html"><strong aria-hidden="true">3.</strong> Seeking Consensus</a></li><li class="chapter-item expanded "><a href="achieving-linearizability.html"><strong aria-hidden="true">4.</strong> Achieving Linearizability</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -207,7 +207,11 @@ as <a href="https://lamport.azurewebsites.net/tla/industrial-use.html">the TLA+ 
 checker</a> to achieve
 the same goal, but whereas those solutions typically verify a high level system
 design, Stateright is able to verify the underlying system <em>implementation</em> in
-addition to the design.</p>
+addition to the design. On the other end of the spectrum are software such as
+<a href="https://jepsen.io/">Jepsen</a> which can validate a final implementation by
+testing a random subset of the system's behavior, whereas Stateright can
+systematically enumerate all possible behaviors within a specified model of the
+system.</p>
 <p>We'll jump right in with a motivating example in the first chapter, <a href="./getting-started.html">Getting
 Started</a>. Please see the <a href="https://www.youtube.com/playlist?list=PLUhyBsVvEJjaF1VpNhLRfIA4E7CFPirmz">Stateright YouTube
 channel</a>

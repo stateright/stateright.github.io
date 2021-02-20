@@ -48,6 +48,19 @@ sometimes known as a [shared
 register](https://en.wikipedia.org/wiki/Shared_register).  Responses are linked
 to requests via a request ID chosen by the client.
 
+Stateright must have visibility of every actor/input output to facilitate
+enumerating possible system behaviors. That means the actor should only
+interface with the outside world via events passed by the Stateright framework.
+
+`state: &mut`
+[`Cow<Self::State>`](https://doc.rust-lang.org/std/borrow/enum.Cow.html) is a
+clone-on-write smart pointer keeping track of whether the actor's internal
+state changed while `o: &mut`
+[`Out<Self>`](https://docs.rs/stateright/latest/stateright/actor/struct.Out.html)
+is a container recording output/commands. Commands recorded by methods such as
+[`Out::send(...)`](https://docs.rs/stateright/latest/stateright/actor/struct.Out.html#method.send)
+do not take effect until the method returns.
+
 ```rust,ignore,noplayground
 {{#include ../rs-src/getting-started/src/main.rs:actor}}
 ```
@@ -66,25 +79,49 @@ regardless of how the network reorders or redelivers messages*."
 
 The test checks the system for a property called
 [linearizability](https://en.wikipedia.org/wiki/Linearizability), which loosely
-speaking means that the visible behavior of the register abstraction provided
-by the actors is identical to that of a register within a single-threaded
-system.
+speaking means that the visible behavior of the register emulated by the actor
+system is identical to that of a register within a single-threaded system. In
+the words of the individuals who coined the term:
+
+> Linearizability provides the illusion that each operation applied by
+concurrent processes takes effect instantaneously at some point between its
+invocation and its response, implying that the meaning of a concurrent object’s
+operations can be given by pre- and post-conditions.
+> - Maurice Herlihy and Jeannette Wing, in [Linearizability: A Correctness
+Condition for Concurrent
+Objects](https://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.142.5315)
+
+An important aspect of linearizability is the notion of a "sequential
+specification," which serves as a reference for correct behavior of the system.
+In other words, the system *emulates* the sequential specification.
+For instance, the sequential specification could indicate:
+
+- the system behaves like a memory cell (i.e. register semantics),
+- the system behaves like a queue,
+- or the system behaves like a stack.
+
+That means that when someone indicates that a system is linearizable, it is
+important to keep in mind the question "linearizable with respect to *what*?"
+In this chapter, the sequential specification is register semantics, provided
+by Stateright, but later chapters will involve other sequential specifications.
 
 > **Terminology**: The term "linearizable" derives from the insight that the
-operations executed by a system form a directed acyclic graph where edges
-indicate "happens before." For example, if Computer1 sends messages to invoke
-operations on Computer2 and Computer3, then the message sends happens before
-Computer2 or Computer3 handle them, but the handling of the messages by
+operations executed by a system form a directed acyclic graph (a partial order)
+where edges indicate "happens before." For example, if Computer1 sends messages
+to invoke operations on Computer2 and Computer3, then the message sends happens
+before Computer2 or Computer3 handle them, but the handling of the messages by
 Computer2 and Computer 3 lack a defined order because the messages
 [race](https://en.wikipedia.org/wiki/Race_condition). A "linearization" defines
-a viable linear order such as "Computer 1 sends the messages, Computer 3
-handles one, and then Computer2 handles the other." A system is not
-linearizable when its behavior cannot be mapped to a linearization. For
-example, if the operation invoked on Computer2 was `Append "Hello"` and
-Computer3 was `Append "World"`, but the final value interlaced the inputs to
-form `"WolloHerld"`, then the system would not be linearizable. Either
-`"HelloWorld"` or `"WorldHello"` on the other hand would be valid
-linearizations since the messages race.
+a viable linear order of seemingly atomic events such as "Computer 1 sends the
+messages, Computer 3 handles one, and then Computer2 handles the other." A
+system is not linearizable when its behavior cannot be mapped to a
+linearization. For example, if the operation invoked on Computer2 was `Append
+"Hello"` and Computer3 was `Append "World"`, but the final value interlaced the
+inputs to form `"WolloHerld"`, then the system would not be linearizable.
+Either `"HelloWorld"` or `"WorldHello"` on the other hand would be valid
+linearizations since the messages race. While this kind of understanding is not
+needed to validate a system for linearizability, it will assist you in
+debugging when Stateright indicates that a system is not linearizable.
 
 The test leverages
 [`RegisterTestSystem`](https://docs.rs/stateright/0.18.0/stateright/actor/register/struct.RegisterTestSystem.html),
