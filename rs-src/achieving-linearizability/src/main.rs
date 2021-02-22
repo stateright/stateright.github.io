@@ -233,14 +233,13 @@ fn main() {
     let id0 = Id::from(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3000));
     let id1 = Id::from(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3001));
     let id2 = Id::from(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3002));
-    let handles = spawn(
+    spawn(
         serde_json::to_vec,
         |bytes| serde_json::from_slice(bytes),
         vec![
             (id0, AbdActor { peers: vec![id1, id2] }),
             (id1, AbdActor { peers: vec![id0, id2] }),
             (id2, AbdActor { peers: vec![id0, id1] }),
-        ]);
-    for h in handles { let _ = h.join(); }
+        ]).unwrap();
 }
 /* ANCHOR_END: all */

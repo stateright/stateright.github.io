@@ -86,13 +86,12 @@ mod test {
 // ANCHOR: main
 fn main() {
     env_logger::init_from_env(env_logger::Env::default().default_filter_or("info"));
-    let handles = spawn(
+    spawn(
         serde_json::to_vec,
         |bytes| serde_json::from_slice(bytes),
         vec![
             (SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3000), ActorContext)
-        ]);
-    for h in handles { let _ = h.join(); }
+        ]).unwrap();
 }
 // ANCHOR_END: main
 

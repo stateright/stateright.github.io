@@ -184,7 +184,7 @@ edition = &quot;2018&quot;
 [dependencies]
 env_logger = &quot;0.7&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.22&quot;
+stateright = &quot;0.23&quot;
 </code></pre>
 <p>Here is the complete implementation for <code>main.rs</code>, explained below:</p>
 <pre><code class="language-rust ignore noplayground">
@@ -282,13 +282,12 @@ mod test {
 // Running the program spawns a single actor on UDP port 3000. Messages are JSON-serialized.
 fn main() {
     env_logger::init_from_env(env_logger::Env::default().default_filter_or(&quot;info&quot;));
-    let handles = spawn(
+    spawn(
         serde_json::to_vec,
         |bytes| serde_json::from_slice(bytes),
         vec![
             (SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3000), ActorContext)
-        ]);
-    for h in handles { let _ = h.join(); }
+        ]).unwrap();
 }
 
 </code></pre>

@@ -190,7 +190,7 @@ edition = &quot;2018&quot;
 env_logger = &quot;0.7&quot;
 serde = &quot;1.0&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.22&quot;
+stateright = &quot;0.23&quot;
 </code></pre>
 <p>By now you have the hang of implementing basic actor systems in Stateright, so
 we'll defer the full <code>main.rs</code> source code listing until later in the chapter.</p>
@@ -529,15 +529,14 @@ fn main() {
     let id0 = Id::from(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3000));
     let id1 = Id::from(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3001));
     let id2 = Id::from(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3002));
-    let handles = spawn(
+    spawn(
         serde_json::to_vec,
         |bytes| serde_json::from_slice(bytes),
         vec![
             (id0, ActorContext { peer_ids: vec![id1, id2].into_iter().collect() } ),
             (id1, ActorContext { peer_ids: vec![id0, id2].into_iter().collect() } ),
             (id2, ActorContext { peer_ids: vec![id0, id1].into_iter().collect() } ),
-        ]);
-    for h in handles { let _ = h.join(); }
+        ]).unwrap();
 }
 
 </code></pre>
