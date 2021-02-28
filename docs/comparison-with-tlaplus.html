@@ -1,0 +1,634 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Comparison with TLA+ - Building Distributed Systems With Stateright</title>
+        
+        
+
+
+        <!-- Custom HTML head -->
+        
+
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        
+        <link rel="icon" href="favicon.svg">
+        
+        
+        <link rel="shortcut icon" href="favicon.png">
+        
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        
+        <link rel="stylesheet" href="css/print.css" media="print">
+        
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        
+        <link rel="stylesheet" href="fonts/fonts.css">
+        
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        
+
+        
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="title-page.html">Building Distributed Systems With Stateright</a></li><li class="chapter-item expanded affix "><li class="part-title">Concepts</li><li class="chapter-item expanded "><a href="getting-started.html"><strong aria-hidden="true">1.</strong> Getting Started</a></li><li class="chapter-item expanded affix "><li class="part-title">Protocols</li><li class="chapter-item expanded "><a href="taming-the-network.html"><strong aria-hidden="true">2.</strong> Taming the Network</a></li><li class="chapter-item expanded "><a href="seeking-consensus.html"><strong aria-hidden="true">3.</strong> Seeking Consensus</a></li><li class="chapter-item expanded "><a href="achieving-linearizability.html"><strong aria-hidden="true">4.</strong> Achieving Linearizability</a></li><li class="chapter-item expanded "><div><strong aria-hidden="true">5.</strong> Achieving Consensus</div></li><li class="chapter-item expanded affix "><li class="part-title">Other Topics</li><li class="chapter-item expanded "><a href="comparison-with-tlaplus.html" class="active"><strong aria-hidden="true">6.</strong> Comparison with TLA+</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                        
+                    </div>
+
+                    <h1 class="menu-title">Building Distributed Systems With Stateright</h1>
+
+                    <div class="right-buttons">
+                        
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        
+                        
+                        <a href="https://github.com/stateright/stateright.github.io" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                        
+                    </div>
+                </div>
+
+                
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" name="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1><a class="header" href="#comparison-with-tla" id="comparison-with-tla">Comparison with TLA+</a></h1>
+<p>This chapter compares two abstract models of the <a href="https://en.wikipedia.org/wiki/Two-phase_commit_protocol">two-phase commit
+protocol</a>: one written
+in a language called <a href="https://en.wikipedia.org/wiki/TLA%2B">TLA+</a> and the other
+written in Rust. The chapter exists to assist those who are already familiar
+with TLA+, so feel free to skip if you are not familiar with TLA+.</p>
+<h2><a class="header" href="#attribution" id="attribution">Attribution</a></h2>
+<p>The TLA+ model comes from the paper &quot;<a href="https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr-2003-96.pdf">Consensus on transaction
+commit</a>&quot;
+by Jim Gray and Leslie Lamport and is used in accordance with the ACM's
+<a href="https://www.acm.org/publications/policies/software-copyright-notice">Software Copyright
+Notice</a>.
+It has been adapted slightly for this book. Here are the copyright details from
+the paper:</p>
+<blockquote>
+<p>Copyright 2005 by the Association for Computing Machinery, Inc. Permission
+to make digital or hard copies of part or all of this work for personal or
+classroom use is granted without fee provided that copies are not made or
+distributed for profit or  commercial  advantage and  that  copies  bear this
+notice  and  the  full  citation on the first page.  Copyrights for components
+of this work owned by others than ACM must be honored.  Abstracting with credit
+is permitted.  To copy otherwise, to republish, to post on servers, or to
+redistribute to lists, requires prior specific permission and/or a fee.
+Request permissions from Publications Dept, ACM Inc., fax +1 (212) 869-0481, or
+<a href="mailto:permissions@acm.org">permissions@acm.org</a>.</p>
+</blockquote>
+<p>Citation:</p>
+<blockquote>
+<p>Jim Gray and Leslie Lamport. 2006. Consensus on transaction commit. ACM
+Trans. Database Syst. 31, 1 (March 2006), 133–160.
+DOI:<a href="https://doi.org/10.1145/1132863.1132867">https://doi.org/10.1145/1132863.1132867</a></p>
+</blockquote>
+<h2><a class="header" href="#unique-benefits-of-each" id="unique-benefits-of-each">Unique Benefits of Each</a></h2>
+<p>Before getting to the code, it is valuable to highlight that while the
+functionality of TLC (the model checker for TLA+) and Stateright overlap to
+some degree, each has unique benefits. Enumerating some of these can assist
+with deciding when to use each solution.</p>
+<p>Unique benefits of TLC/TLA+:</p>
+<ul>
+<li><strong>Brevity</strong>: TLA+ is more concise than Rust.</li>
+<li><strong>State Reduction</strong>: TLC supports symmetry reduction.</li>
+<li><strong>Features</strong>: TLC supports arbitrarily complex temporal properties including
+fairness.</li>
+<li><strong>Features</strong>: TLC supports refinement mapping between models.</li>
+</ul>
+<p>Unique benefits of Stateright/Rust:</p>
+<ul>
+<li><strong>Additional Verification</strong>: With Stateright your model and final
+implementation are encouraged to share code. This eliminates a possible
+failure mode whereby a model and it's resulting production system
+implementation deviate.</li>
+<li><strong>Reuse and Extensibility</strong>: Rust has a far larger library ecosystem and is
+arguably more amenable to reuse than TLA+. For example, Stateright's code for
+defining a system's <a href="https://docs.rs/stateright/latest/stateright/semantics/index.html">operational
+semantics</a>
+are not built into the model checker and could be provided as an external
+library. The same can be said about the included <a href="https://docs.rs/stateright/latest/stateright/semantics/register/index.html">register
+semantics</a>,
+<a href="https://docs.rs/stateright/latest/stateright/semantics/struct.LinearizabilityTester.html">linearizability
+tester</a>,
+and <a href="https://docs.rs/stateright/latest/stateright/actor/index.html">actor
+model</a> to name
+a few other examples. More generally the entire <a href="https://crates.io/">Rust crate
+registry</a> (with tens of thousands of libraries) is at
+your disposal. In contrast, the pattern for reuse in TLA+ is
+<a href="https://groups.google.com/g/tlaplus/c/BHBNTkJ2QFE/m/meTQs4pHBwAJ">copy-paste-modify</a>,
+and the number of reusable modules is <a href="https://github.com/tlaplus/CommunityModules">relatively
+small</a>.</li>
+<li><strong>Checker Performance</strong>: Stateright tends to be faster and offers additional
+optimization possibilities such as replacing a set with a bit vector for
+example. While TLC allows you to <a href="https://stackoverflow.com/questions/53908653/use-module-overloading-to-implement-a-hash-function-in-tla">override modules with Java
+implementations</a>,
+doing so is relatively cumbersome and rarely used.</li>
+<li><strong>Final Implementation Performance</strong>: As a more auxiliary benefit, Stateright
+can serve as a stress test for your final implementation, identifying
+regressions and also facilitating performance investigation.</li>
+<li><strong>Features</strong>: Stateright offers
+&quot;<a href="https://docs.rs/stateright/latest/stateright/struct.Property.html#method.sometimes">sometimes</a>&quot;
+properties that serve to sanity check that expected outcomes are possible.
+These are less powerful than temporal properties but serve a slightly
+different purpose because examples of these properties being met are included
+in the checker discoveries.</li>
+<li><strong>Features</strong>: <a href="https://docs.rs/stateright/latest/stateright/struct.CheckerBuilder.html#method.serve">Stateright
+Explorer</a>
+allows you to interactively browse a model's state space and also lets you
+jump between discoveries (whether they are property violations or instances
+of &quot;sometimes&quot; properties).</li>
+</ul>
+<p>With those out of the way, let's move on to the code comparison.</p>
+<h2><a class="header" href="#code-comparison" id="code-comparison">Code Comparison</a></h2>
+<p>Both models are parameterized by a collection of &quot;resource managers.&quot; The TLA+
+spec does not specify a type, but a set is expected. The Stateright spec maps
+each resource manager to an integer in the range <code>0..N</code> (<code>0</code> to <code>N-1</code> inclusive).</p>
+<table><tr><td>
+<pre><code class="language-ignore noplayground">CONSTANT RM    
+</code></pre>
+</td><td>
+<pre><code class="language-rust ignore noplayground">type R = usize; // RM in 0..N
+
+#[derive(Clone)]
+struct TwoPhaseSys { pub rms: Range&lt;R&gt; }
+</code></pre>
+</td></tr></table>
+<p>Next we define variables. These are global in the TLA+ spec, and their type
+constraints are indicated later in the spec via an invariant. In Stateright
+these have a statically defined type.</p>
+<table><tr><td>
+<pre><code class="language-ignore noplayground">VARIABLES
+  rmState,
+  tmState,
+  tmPrepared,
+  msgs           
+</code></pre>
+</td><td>
+<pre><code class="language-rust ignore noplayground">#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+struct TwoPhaseState {
+    rm_state: Vec&lt;RmState&gt;,
+    tm_state: TmState,
+    tm_prepared: Vec&lt;bool&gt;,
+    msgs: BTreeSet&lt;Message&gt;,
+}
+</code></pre>
+</td></tr></table>
+<p>Types in the TLA+ spec are conveyed via an invariant that is passed to its
+model checker, TLC.</p>
+<table><tr><td>
+<pre><code class="language-ignore noplayground">Message ==
+  [type : {&quot;Prepared&quot;}, rm : RM]  \cup  [type : {&quot;Commit&quot;, &quot;Abort&quot;}]
+   
+TypeOK ==  
+  /\ rmState \in [RM -&gt; {&quot;working&quot;, &quot;prepared&quot;, &quot;committed&quot;, &quot;aborted&quot;}]
+  /\ tmState \in {&quot;init&quot;, &quot;committed&quot;, &quot;aborted&quot;}
+  /\ tmPrepared \subseteq RM
+  /\ msgs \subseteq Message
+</code></pre>
+</td><td>
+<pre><code class="language-rust ignore noplayground">#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+enum Message { Prepared { rm: R }, Commit, Abort }
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+enum RmState { Working, Prepared, Committed, Aborted }
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+enum TmState { Init, Committed, Aborted }
+</code></pre>
+</td></tr></table>
+<p>TLA+ leverages temporal logic to convey the specification, while Stateright
+requires that a trait is implemented. One other distinct aspect is that
+Stateright actions are also types.</p>
+<table><tr><td>
+<pre><code class="language-ignore noplayground">Spec == Init
+     /\ [][Next]_&lt;&lt;rmState, tmState, tmPrepared, msgs&gt;&gt;
+</code></pre>
+</td><td>
+<pre><code class="language-rust ignore noplayground">#[derive(Clone, Debug)]
+enum Action {
+    TmRcvPrepared(R),
+    TmCommit,
+    TmAbort,
+    RmPrepare(R),
+    RmChooseToAbort(R),
+    RmRcvCommitMsg(R),
+    RmRcvAbortMsg(R),
+}
+
+impl Model for TwoPhaseSys {
+    type State = TwoPhaseState;
+    type Action = Action;
+    ...
+}
+</code></pre>
+</td></tr></table>
+<p>The initial aggregate state is one where</p>
+<ul>
+<li>the resource mangers are ready to start a transaction;</li>
+<li>the sole transaction manager is ready to start a transaction;</li>
+<li>the transaction manager's view of each resource manager indicates that none
+have prepared for a transaction yet;</li>
+<li>and the network is an empty set.</li>
+</ul>
+<p>Note that set semantics provide an ideal model for a network in this case
+because they capture the fact that networks rarely make guarantees about
+message order.  Those guarantees must be imposed by additional protocols. And
+keep in mind that often those protocols only provide guarantees under limited
+scopes (e.g. TCP only orders messages within the lifetime of that connection,
+so a transient network partition can still cause message redelivery with TCP).</p>
+<table><tr><td>
+<pre><code class="language-ignore noplayground">Init ==   
+  /\ rmState = [rm \in RM |-&gt; &quot;working&quot;]
+  /\ tmState = &quot;init&quot;
+  /\ tmPrepared   = {}
+  /\ msgs = {}
+</code></pre>
+</td><td>
+<pre><code class="language-rust ignore noplayground">fn init_states(&amp;self) -&gt; Vec&lt;Self::State&gt; {
+    vec![TwoPhaseState {
+        rm_state: self.rms.clone().map(|_| RmState::Working).collect(),
+        tm_state: TmState::Init,
+        tm_prepared: self.rms.clone().map(|_| false).collect(),
+        msgs: Default::default(),
+    }]
+}
+</code></pre>
+</td></tr></table>
+<p>Now we get to the most interesting part of the model, the state transitions.
+TLA+ requires each action definition to precede the aggregate next state
+relation (<code>TPNext</code> in this case). Each action serves two roles: (1) it defines
+its own preconditions and (2) it definies the subsequent state change (along
+with the unchanged states). In Stateright it is more idiomatic (and performant)
+to distinguish between the preconditions (in <code>fn actions...</code>) and state change
+(in <code>fn next_state...</code>).</p>
+<table><tr><td>
+<pre><code class="language-ignore noplayground">TMCommit ==
+  /\ tmState = &quot;init&quot;
+  /\ tmPrepared = RM
+  /\ tmState' = &quot;committed&quot;
+  /\ msgs' = msgs \cup {[type |-&gt; &quot;Commit&quot;]}
+  /\ UNCHANGED &lt;&lt;rmState, tmPrepared&gt;&gt;
+
+TMAbort ==
+  /\ tmState = &quot;init&quot;
+  /\ tmState' = &quot;aborted&quot;
+  /\ msgs' = msgs \cup {[type |-&gt; &quot;Abort&quot;]}
+  /\ UNCHANGED &lt;&lt;rmState, tmPrepared&gt;&gt;
+
+TMRcvPrepared(rm) ==
+  /\ tmState = &quot;init&quot;
+  /\ [type |-&gt; &quot;Prepared&quot;, rm |-&gt; rm] \in msgs
+  /\ tmPrepared' = tmPrepared \cup {rm}
+  /\ UNCHANGED &lt;&lt;rmState, tmState, msgs&gt;&gt;
+
+RMPrepare(rm) == 
+  /\ rmState[rm] = &quot;working&quot;
+  /\ rmState' = [rmState EXCEPT ![rm] = &quot;prepared&quot;]
+  /\ msgs' = msgs \cup {[type |-&gt; &quot;Prepared&quot;, rm |-&gt; rm]}
+  /\ UNCHANGED &lt;&lt;tmState, tmPrepared&gt;&gt;
+  
+RMChooseToAbort(rm) ==
+  /\ rmState[rm] = &quot;working&quot;
+  /\ rmState' = [rmState EXCEPT ![rm] = &quot;aborted&quot;]
+  /\ UNCHANGED &lt;&lt;tmState, tmPrepared, msgs&gt;&gt;
+
+RMRcvCommitMsg(rm) ==
+  /\ [type |-&gt; &quot;Commit&quot;] \in msgs
+  /\ rmState' = [rmState EXCEPT ![rm] = &quot;committed&quot;]
+  /\ UNCHANGED &lt;&lt;tmState, tmPrepared, msgs&gt;&gt;
+
+RMRcvAbortMsg(rm) ==
+  /\ [type |-&gt; &quot;Abort&quot;] \in msgs
+  /\ rmState' = [rmState EXCEPT ![rm] = &quot;aborted&quot;]
+  /\ UNCHANGED &lt;&lt;tmState, tmPrepared, msgs&gt;&gt;
+
+Next ==
+  \/ TMCommit \/ TMAbort
+  \/ \E rm \in RM : 
+       TMRcvPrepared(rm) \/ RMPrepare(rm) \/ RMChooseToAbort(rm)
+         \/ RMRcvCommitMsg(rm) \/ RMRcvAbortMsg(rm)
+</code></pre>
+</td><td>
+<pre><code class="language-rust ignore noplayground">fn actions(&amp;self, state: &amp;Self::State, actions: &amp;mut Vec&lt;Self::Action&gt;) {
+    if state.tm_state == TmState::Init
+            &amp;&amp; state.tm_prepared.iter().all(|p| *p) {
+        actions.push(Action::TmCommit);
+    }
+    if state.tm_state == TmState::Init {
+        actions.push(Action::TmAbort);
+    }
+    for rm in self.rms.clone() {
+        if state.tm_state == TmState::Init
+                &amp;&amp; state.msgs.contains(&amp;Message::Prepared { rm }) {
+            actions.push(Action::TmRcvPrepared(rm));
+        }
+        if state.rm_state.get(rm) == Some(&amp;RmState::Working) {
+            actions.push(Action::RmPrepare(rm));
+        }
+        if state.rm_state.get(rm) == Some(&amp;RmState::Working) {
+            actions.push(Action::RmChooseToAbort(rm));
+        }
+        if state.msgs.contains(&amp;Message::Commit) {
+            actions.push(Action::RmRcvCommitMsg(rm));
+        }
+        if state.msgs.contains(&amp;Message::Abort) {
+            actions.push(Action::RmRcvAbortMsg(rm));
+        }
+    }
+}
+
+fn next_state(&amp;self, last_state: &amp;Self::State, action: Self::Action)
+        -&gt; Option&lt;Self::State&gt; {
+    let mut state = last_state.clone();
+    match action {
+        Action::TmRcvPrepared(rm) =&gt; {
+            state.tm_prepared[rm] = true;
+        }
+        Action::TmCommit =&gt; {
+            state.tm_state = TmState::Committed;
+            state.msgs.insert(Message::Commit);
+        }
+        Action::TmAbort =&gt; {
+            state.tm_state = TmState::Aborted;
+            state.msgs.insert(Message::Abort);
+        },
+        Action::RmPrepare(rm) =&gt; {
+            state.rm_state[rm] = RmState::Prepared;
+            state.msgs.insert(Message::Prepared { rm });
+        },
+        Action::RmChooseToAbort(rm) =&gt; {
+            state.rm_state[rm] = RmState::Aborted;
+        }
+        Action::RmRcvCommitMsg(rm) =&gt; {
+            state.rm_state[rm] = RmState::Committed;
+        }
+        Action::RmRcvAbortMsg(rm) =&gt; {
+            state.rm_state[rm] = RmState::Aborted;
+        }
+    }
+    Some(state)
+}
+</code></pre>
+</td></tr></table>
+<p>Then we get to the sole property: if a resource manager reaches a final
+commit/abort state, then no other resource manager can disagree with that
+decision.</p>
+<table><tr><td>
+<pre><code class="language-ignore noplayground">Consistent ==
+  \A rm1, rm2 \in RM : ~ /\ rmState[rm1] = &quot;aborted&quot;
+                         /\ rmState[rm2] = &quot;committed&quot;
+</code></pre>
+</td><td>
+<pre><code class="language-rust ignore noplayground">fn properties(&amp;self) -&gt; Vec&lt;Property&lt;Self&gt;&gt; {
+    vec![
+        Property::&lt;Self&gt;::always(&quot;consistent&quot;, |_, state| {
+           !state.rm_state.iter().any(|s1|
+                state.rm_state.iter().any(|s2|
+                    s1 == &amp;RmState::Aborted &amp;&amp; s2 == &amp;RmState::Committed))
+        }),
+    ]
+}
+</code></pre>
+</td></tr></table>
+<h1><a class="header" href="#performance-comparison" id="performance-comparison">Performance Comparison</a></h1>
+<p>Now we need to configure the model. For TLC, this is done via a special &quot;CFG&quot;
+file, while for Stateright you simply introduce a Rust test.</p>
+<table><tr><td>
+<pre><code class="language-ignore noplayground">SPECIFICATION Spec
+INVARIANT TypeOK
+INVARIANT Consistent
+CONSTANTS
+  RM = {0,1,2,3,4,5,6,7,8}
+</code></pre>
+</td><td>
+<pre><code class="language-rust ignore noplayground">#[cfg(test)]
+#[test]
+fn can_model_2pc() {
+    use stateright::Checker;
+    let checker = TwoPhaseSys { rms: 0..9 }.checker()
+        .threads(num_cpus::get()).spawn_dfs().join();
+    checker.assert_properties();
+}
+</code></pre>
+</td></tr></table>
+<p>TLA+ can be run from the command line using a tool such as
+<a href="https://github.com/pmer/tla-bin">tla-bin</a> or
+<a href="https://github.com/hwayne/tlacli">tlacli</a>, while the Stateright test is run
+using <code>cargo test --release</code>. The example below first calls <code>build</code> to avoid
+timing compilation.</p>
+<table><tr><td>
+<pre><code class="language-ignore noplayground">$ tlc -workers auto TwoPhase.tla
+...
+18507778 states generated,
+1745408 distinct states found,
+0 states left on queue.
+...
+Finished in 12s at (2021-02-28 15:28:44)
+</code></pre>
+</td><td>
+<pre><code class="language-ignore noplayground">$ cargo build --release
+$ time cargo test --release
+...
+real    0m1.275s
+...
+</code></pre>
+</td></tr></table>
+<p>Here is a table comparing model checking times on the author's laptop:</p>
+<table><thead><tr><th>#RM</th><th>TLC</th><th>Stateright</th><th>Speedup</th></tr></thead><tbody>
+<tr><td>7</td><td>3 s</td><td>0.372 s</td><td>~8X</td></tr>
+<tr><td>8</td><td>12 s</td><td>1.275 s</td><td>~9X</td></tr>
+<tr><td>9</td><td>90 s</td><td>7.786 s</td><td>~11X</td></tr>
+</tbody></table>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                        
+                            <a rel="prev" href="achieving-linearizability.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+
+                        
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                
+                    <a rel="prev" href="achieving-linearizability.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+            </nav>
+
+        </div>
+
+        
+        <!-- Livereload script (if served using the cli tool) -->
+        <script type="text/javascript">
+            var socket = new WebSocket("ws://localhost:3000/__livereload");
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+        
+
+        
+
+        
+
+        
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        
+
+        
+
+        
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+        
+
+        
+
+    </body>
+</html>

@@ -4,4 +4,5 @@ members = [
     "rs-src/taming-the-network",
     "rs-src/seeking-consensus",
     "rs-src/achieving-linearizability",
+    "rs-src/comparison-with-tlaplus",
 ]
