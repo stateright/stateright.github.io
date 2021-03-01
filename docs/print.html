@@ -209,11 +209,12 @@ as <a href="https://lamport.azurewebsites.net/tla/industrial-use.html">the TLA+ 
 checker</a> to achieve
 the same goal, but whereas those solutions typically verify a high level system
 design, Stateright is able to verify the underlying system <em>implementation</em> in
-addition to the design. On the other end of the spectrum are software such as
-<a href="https://jepsen.io/">Jepsen</a> which can validate a final implementation by
-testing a random subset of the system's behavior, whereas Stateright can
-systematically enumerate all possible behaviors within a specified model of the
-system.</p>
+addition to the design (along with providing other unique benefits explained in
+the &quot;<a href="./comparison-with-tlaplus.html">Comparison with TLA+</a>&quot; chapter). On the
+other end of the spectrum are tools such as <a href="https://jepsen.io/">Jepsen</a> which
+can validate a final implementation by testing a random subset of the system's
+behavior, whereas Stateright can systematically enumerate all possible
+behaviors within a specified model of the system.</p>
 <p>We'll jump right in with a motivating example in the first chapter, <a href="./getting-started.html">Getting
 Started</a>. Please see the <a href="https://www.youtube.com/playlist?list=PLUhyBsVvEJjaF1VpNhLRfIA4E7CFPirmz">Stateright YouTube
 channel</a>
@@ -452,7 +453,7 @@ needed to validate a system for linearizability, it will assist you in
 debugging when Stateright indicates that a system is not linearizable.</p>
 </blockquote>
 <p>The test leverages
-<a href="https://docs.rs/stateright/0.18.0/stateright/actor/register/struct.RegisterTestSystem.html"><code>RegisterTestSystem</code></a>,
+<a href="https://docs.rs/stateright/latest/stateright/actor/register/struct.RegisterTestSystem.html"><code>RegisterTestSystem</code></a>,
 which is built into Stateright and defines a system whereby a specified number
 of clients (only 1 in this case) write distinct values and independently read
 values without coordinating with one another. Under the hood
@@ -2064,16 +2065,16 @@ file, while for Stateright you simply introduce a Rust test.</p>
 INVARIANT TypeOK
 INVARIANT Consistent
 CONSTANTS
-  RM = {0,1,2,3,4,5,6,7,8}
+  RM = {0,1,2,3,4,5,6,7}
 </code></pre>
 </td><td>
 <pre><code class="language-rust ignore noplayground">#[cfg(test)]
 #[test]
 fn can_model_2pc() {
     use stateright::Checker;
-    let checker = TwoPhaseSys { rms: 0..9 }.checker()
-        .threads(num_cpus::get()).spawn_dfs().join();
-    checker.assert_properties();
+    TwoPhaseSys { rms: 0..9 }.checker()
+        .threads(num_cpus::get()).spawn_dfs().join()
+    	.assert_properties();
 }
 </code></pre>
 </td></tr></table>
@@ -2127,21 +2128,6 @@ real    0m1.275s
 
         </div>
 
-        
-        <!-- Livereload script (if served using the cli tool) -->
-        <script type="text/javascript">
-            var socket = new WebSocket("ws://localhost:3000/__livereload");
-            socket.onmessage = function (event) {
-                if (event.data === "reload") {
-                    socket.close();
-                    location.reload();
-                }
-            };
-
-            window.onbeforeunload = function() {
-                socket.close();
-            }
-        </script>
         
 
         

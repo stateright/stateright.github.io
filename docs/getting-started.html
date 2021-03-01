@@ -401,7 +401,7 @@ needed to validate a system for linearizability, it will assist you in
 debugging when Stateright indicates that a system is not linearizable.</p>
 </blockquote>
 <p>The test leverages
-<a href="https://docs.rs/stateright/0.18.0/stateright/actor/register/struct.RegisterTestSystem.html"><code>RegisterTestSystem</code></a>,
+<a href="https://docs.rs/stateright/latest/stateright/actor/register/struct.RegisterTestSystem.html"><code>RegisterTestSystem</code></a>,
 which is built into Stateright and defines a system whereby a specified number
 of clients (only 1 in this case) write distinct values and independently read
 values without coordinating with one another. Under the hood
@@ -522,21 +522,6 @@ Network</a> will address that bug.</p>
 
         </div>
 
-        
-        <!-- Livereload script (if served using the cli tool) -->
-        <script type="text/javascript">
-            var socket = new WebSocket("ws://localhost:3000/__livereload");
-            socket.onmessage = function (event) {
-                if (event.data === "reload") {
-                    socket.close();
-                    location.reload();
-                }
-            };
-
-            window.onbeforeunload = function() {
-                socket.close();
-            }
-        </script>
         
 
         

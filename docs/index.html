@@ -207,11 +207,12 @@ as <a href="https://lamport.azurewebsites.net/tla/industrial-use.html">the TLA+ 
 checker</a> to achieve
 the same goal, but whereas those solutions typically verify a high level system
 design, Stateright is able to verify the underlying system <em>implementation</em> in
-addition to the design. On the other end of the spectrum are software such as
-<a href="https://jepsen.io/">Jepsen</a> which can validate a final implementation by
-testing a random subset of the system's behavior, whereas Stateright can
-systematically enumerate all possible behaviors within a specified model of the
-system.</p>
+addition to the design (along with providing other unique benefits explained in
+the &quot;<a href="./comparison-with-tlaplus.html">Comparison with TLA+</a>&quot; chapter). On the
+other end of the spectrum are tools such as <a href="https://jepsen.io/">Jepsen</a> which
+can validate a final implementation by testing a random subset of the system's
+behavior, whereas Stateright can systematically enumerate all possible
+behaviors within a specified model of the system.</p>
 <p>We'll jump right in with a motivating example in the first chapter, <a href="./getting-started.html">Getting
 Started</a>. Please see the <a href="https://www.youtube.com/playlist?list=PLUhyBsVvEJjaF1VpNhLRfIA4E7CFPirmz">Stateright YouTube
 channel</a>
@@ -246,21 +247,6 @@ if you prefer starting with a video introduction.</p>
 
         </div>
 
-        
-        <!-- Livereload script (if served using the cli tool) -->
-        <script type="text/javascript">
-            var socket = new WebSocket("ws://localhost:3000/__livereload");
-            socket.onmessage = function (event) {
-                if (event.data === "reload") {
-                    socket.close();
-                    location.reload();
-                }
-            };
-
-            window.onbeforeunload = function() {
-                socket.close();
-            }
-        </script>
         
 
         

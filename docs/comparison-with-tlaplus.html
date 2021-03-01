@@ -515,16 +515,16 @@ file, while for Stateright you simply introduce a Rust test.</p>
 INVARIANT TypeOK
 INVARIANT Consistent
 CONSTANTS
-  RM = {0,1,2,3,4,5,6,7,8}
+  RM = {0,1,2,3,4,5,6,7}
 </code></pre>
 </td><td>
 <pre><code class="language-rust ignore noplayground">#[cfg(test)]
 #[test]
 fn can_model_2pc() {
     use stateright::Checker;
-    let checker = TwoPhaseSys { rms: 0..9 }.checker()
-        .threads(num_cpus::get()).spawn_dfs().join();
-    checker.assert_properties();
+    TwoPhaseSys { rms: 0..9 }.checker()
+        .threads(num_cpus::get()).spawn_dfs().join()
+    	.assert_properties();
 }
 </code></pre>
 </td></tr></table>
@@ -586,21 +586,6 @@ real    0m1.275s
 
         </div>
 
-        
-        <!-- Livereload script (if served using the cli tool) -->
-        <script type="text/javascript">
-            var socket = new WebSocket("ws://localhost:3000/__livereload");
-            socket.onmessage = function (event) {
-                if (event.data === "reload") {
-                    socket.close();
-                    location.reload();
-                }
-            };
-
-            window.onbeforeunload = function() {
-                socket.close();
-            }
-        </script>
         
 
         
