@@ -124,7 +124,7 @@ needed to validate a system for linearizability, it will assist you in
 debugging when Stateright indicates that a system is not linearizable.
 
 The test leverages
-[`RegisterTestSystem`](https://docs.rs/stateright/0.18.0/stateright/actor/register/struct.RegisterTestSystem.html),
+[`RegisterTestSystem`](https://docs.rs/stateright/latest/stateright/actor/register/struct.RegisterTestSystem.html),
 which is built into Stateright and defines a system whereby a specified number
 of clients (only 1 in this case) write distinct values and independently read
 values without coordinating with one another. Under the hood
