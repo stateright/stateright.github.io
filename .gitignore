@@ -1,2 +1,4 @@
+*.toolbox/
 Cargo.lock
+states/
 target/
