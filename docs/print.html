@@ -371,7 +371,7 @@ be in the form of messages. For example, if your actor needs to interface
 with a database, you might introduce <code>DbExec(...)</code> output and
 <code>DbResult(...)</code> input messages; or if it needs to interface with the file
 system, you might introduce <code>FileRead(...)</code> output and <code>FileResult(...)</code>
-input messages. An adapter layer would then translate these into the
+input messages. An adapter layer would then translate these into/from the
 corresponding effects rather than treating them as standard messages between
 actors in the system. This technique will be demonstrated in a later
 chapter.</li>
@@ -385,6 +385,30 @@ are called, and Stateright's actor runtime sends them later.</li>
 parameter. Doing so enables Stateright to more efficiently validate a system
 when it is enumerating different branches of nondeterministic behavior.</li>
 </ol>
+<h2><a class="header" href="#model-checking-in-more-detail" id="model-checking-in-more-detail">Model Checking in More Detail</a></h2>
+<p>The reference to &quot;enumerating different branches of nondeterministic behavior&quot;
+deserves additional explanation. The nondeterminism within a nondeterministic
+system is never completely open ended. Instead there are &quot;decision points&quot; that
+arise, where a &quot;decision&quot; isn't directly made by your code but rather is the
+weighted random outcome of many factors. For example, if two clients
+concurrently initiate requests to a service, then the initial &quot;decision&quot; would
+be:</p>
+<ol>
+<li>the first client's request is delivered causing the service to respond,</li>
+<li>the second client's request is delivered causing the service to respond,</li>
+<li>or both clients time out while contacting the service.</li>
+</ol>
+<p>If option 1 occurs, then it can be followed by option 2, and vice versa. In
+both cases, timeouts are also possible. In this manner the possible behaviors
+of a nondeterministic system can be seen as a decision tree.</p>
+<p><img src="getting-started.states.svg" alt="decision diagram showing possible states" /></p>
+<p>At each of these decision points, Stateright will explore one of the outcomes
+and then backtrack to expore the other outcome. This is the distinguishing
+characteristic of model checking in comparison with random testing. Also, each
+gray box indicates a potential state of the aggregate system (where the
+aggregate system state includes the client state, the service state, and the
+network state), and the collection of all potential aggregate states is known
+as the &quot;state space.&quot;</p>
 <h2><a class="header" href="#implementation-walkthrough" id="implementation-walkthrough">Implementation Walkthrough</a></h2>
 <p>The server responds to <code>Put</code> and <code>Get</code> messages based only on its own local
 state, providing its clients with a simple form of distributed storage,

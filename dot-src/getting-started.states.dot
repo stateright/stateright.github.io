@@ -1,0 +1,17 @@
+digraph {
+    node [shape="box" style="filled, rounded"]
+
+    "Decision 1"  [shape="diamond" color="#ccccff" style="filled, rounded"]
+    "Decision 2a" [shape="diamond" color="#ccccff" style="filled, rounded"]
+    "Decision 2b" [shape="diamond" color="#ccccff" style="filled, rounded"]
+
+    "Decision 1" -> "Respond to First Client's Request" -> "Decision 2a"
+    "Decision 1" -> "Respond to Second Client's Request" -> "Decision 2b"
+    "Decision 1" -> "Both time out"
+
+    "Decision 2a" -> "Respond to Second Client's Request Next"
+    "Decision 2a" -> "Second Client Times Out"
+
+    "Decision 2b" -> "Respond to First Client's Request Next"
+    "Decision 2b" -> "First Client Times Out"
+}

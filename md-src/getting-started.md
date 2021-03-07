@@ -93,7 +93,7 @@ Stateright's approach:
    with a database, you might introduce `DbExec(...)` output and
    `DbResult(...)` input messages; or if it needs to interface with the file
    system, you might introduce `FileRead(...)` output and `FileResult(...)`
-   input messages. An adapter layer would then translate these into the
+   input messages. An adapter layer would then translate these into/from the
    corresponding effects rather than treating them as standard messages between
    actors in the system. This technique will be demonstrated in a later
    chapter.
@@ -108,6 +108,34 @@ Stateright's approach:
    Cow<Self::State>`](https://doc.rust-lang.org/std/borrow/enum.Cow.html)
    parameter. Doing so enables Stateright to more efficiently validate a system
    when it is enumerating different branches of nondeterministic behavior.
+
+## Model Checking in More Detail
+
+The reference to "enumerating different branches of nondeterministic behavior"
+deserves additional explanation. The nondeterminism within a nondeterministic
+system is never completely open ended. Instead there are "decision points" that
+arise, where a "decision" isn't directly made by your code but rather is the
+weighted random outcome of many factors. For example, if two clients
+concurrently initiate requests to a service, then the initial "decision" would
+be:
+
+1. the first client's request is delivered causing the service to respond,
+2. the second client's request is delivered causing the service to respond,
+3. or both clients time out while contacting the service.
+
+If option 1 occurs, then it can be followed by option 2, and vice versa. In
+both cases, timeouts are also possible. In this manner the possible behaviors
+of a nondeterministic system can be seen as a decision tree.
+
+![decision diagram showing possible states](getting-started.states.svg)
+
+At each of these decision points, Stateright will explore one of the outcomes
+and then backtrack to expore the other outcome. This is the distinguishing
+characteristic of model checking in comparison with random testing. Also, each
+gray box indicates a potential state of the aggregate system (where the
+aggregate system state includes the client state, the service state, and the
+network state), and the collection of all potential aggregate states is known
+as the "state space."
 
 ## Implementation Walkthrough
 

@@ -19,10 +19,17 @@ Test the Rust code with `cargo`:
 cargo test
 ```
 
-Build the book with [mdbook](https://rust-lang.github.io/mdBook/):
+Build the book with [Graphviz](https://graphviz.org/) and
+[mdbook](https://rust-lang.github.io/mdBook/) using the included script:
 
 ```sh
-mdbook build
+./build.sh
+```
+
+You can preview your updates locally with:
+
+```sh
+mdbook serve
 ```
 
 [Pull requests](https://github.com/stateright/stateright.github.io) are welcome. Currently the
