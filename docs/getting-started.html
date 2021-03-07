@@ -175,13 +175,46 @@ stable. If you plan to use Stateright for production scenarios, then please
 <a href="https://github.com/stateright/stateright/issues/new">file a GitHub issue</a> so
 that the author can coordinate with you to minimize any disruption.</p>
 </blockquote>
+<h2><a class="header" href="#staterights-value-proposition" id="staterights-value-proposition">Stateright's Value Proposition</a></h2>
+<p>Stateright is a Rust library that simplifies implementing distributed systems
+while more importantly providing a powerful mechanism for verification.</p>
+<p>Verification of distributed systems is difficult because distributed algorithms
+must be resilient to nondeterminism caused by concurrency such as threads
+racing, but that's only part of the challenge.  Distributed algorithms also
+need to account for the fact that computers typically interface via <a href="https://aphyr.com/posts/288-the-network-is-reliable">unreliable
+networks</a> that will
+periodically do things like reorder or lose messages (if you run your system in
+&quot;the cloud,&quot; then it's running on an unreliable network).  Furthermore, often a
+distributed algorithm is expected to continue working even if a subset of
+computers crash at arbitrary points in their execution.  Designing algorithms
+that continue working in the presence of this added nondeterminism is
+nontrivial and error prone, which necessitates special tools for verifying
+correctness.</p>
+<p>One approach to verifying the correctness of distributed algorithms is to run
+them in an environment that randomly introduces nondeterminism more frequently
+than a normal environment would. This is the approach taken by
+<a href="https://jepsen.io/analyses">Jepsen</a>, and it has proven to be incredibly
+effective, finding bugs in distributed systems such as
+<a href="https://jepsen.io/analyses/etcd-3.4.3">etcd</a>,
+<a href="https://jepsen.io/analyses/postgresql-12.3">PostgreSQL</a>,
+<a href="https://aphyr.com/posts/283-call-me-maybe-redis">Redis</a>, and
+<a href="https://aphyr.com/posts/291-call-me-maybe-zookeeper">Zookeeper</a> among many
+others.</p>
+<p>Stateright's approach is similar, but rather than testing a random subset of
+possible behaviors, it tests <em>all possible observable behaviors</em> within a
+particular specification.  The catch is that Stateright needs to be embedded
+into the system's implementation, whereas solutions such as Jepsen do not,
+making them amenable to testing a wider range of software; but if you are
+writing a distributed system in Rust, then Stateright can provide additional
+verification over random testing.</p>
+<h2><a class="header" href="#an-example" id="an-example">An Example</a></h2>
 <p>Let's start with the simplest nontrivial distributed system: a single client
 that can interact with a single server by reading or writing a value. We'll see
 that even this minimal example is susceptible to surprising behavior.</p>
 <p><a href="https://www.rust-lang.org/learn/get-started">Install the Rust programming
 language</a> if it is not already
 installed, then initialize a new project using the <code>cargo</code> utility included
-with Rust. If you are new to Rust, then you may want to review some of the
+with Rust. If you are new to Rust, then you should also review some of the
 language's <a href="https://www.rust-lang.org/learn">learning resources</a>.</p>
 <pre><code class="language-sh">mkdir getting-started
 cd getting-started
@@ -200,16 +233,10 @@ serde_json = &quot;1.0&quot;
 stateright = &quot;0.23&quot;
 </code></pre>
 <p>Here is the complete implementation for <code>main.rs</code>. Copy-paste it into your own
-file. The next section explains the most important aspects.</p>
-<pre><code class="language-rust ignore noplayground">
-use stateright::actor::{*, register::*};
+file. The subsequent sections will explain further.</p>
+<pre><code class="language-rust ignore noplayground">use stateright::actor::{*, register::*};
 use std::borrow::Cow; // COW == clone-on-write
 use std::net::{SocketAddrV4, Ipv4Addr};
-
-// Here we have an actor that represents a &quot;virtual register.&quot; As you would expect, `Put` messages
-// indicate a value to store, while `Get` messages return the last stored value. Response messages
-// are associated with request messages via an integer &quot;request ID&quot; that is expected to be unique.
-// The Stateright library provides a `RegisterMsg` type for this common pattern.
 
 type RequestId = u64;
 
@@ -246,9 +273,6 @@ mod test {
     use RegisterMsg::{Get, GetOk, Put, PutOk};
     use SystemAction::Deliver;
 
-    // It turns out that even this minimal example of an actor system has a subtle bug, and this is
-    // a category of bug present in many (if not *most*) distributed systems. The bug can manifest
-    // even if there is a single server and a single client.
     #[test]
     fn is_unfortunately_not_linearizable() {
         let checker = RegisterTestSystem {
@@ -258,29 +282,17 @@ mod test {
         }.into_model().checker().spawn_dfs().join();
         //checker.assert_properties(); // TRY IT: Uncomment this line, and the test will fail.
         checker.assert_discovery(&quot;linearizable&quot;, vec![
-            // Here is a counterexample that Stateright will confirm. Each step indicates an
-            // incoming event observed by an actor For brevity counterexamples show actor inputs
-            // such as `Deliver` but not outputs such as `Send`.
-            //
-            // 1. The server receives a write from the client (which it acknowledges).
             Deliver { src: Id::from(1), dst: Id::from(0), msg: Put(1, 'A') },
-            // 2. The client receives the ack (and sends a second write with a new value).
             Deliver { src: Id::from(0), dst: Id::from(1), msg: PutOk(1) },
-            // 3. The server receives the second write (which it acknowledges).
             Deliver { src: Id::from(1), dst: Id::from(0), msg: Put(2, 'Z') },
-            // 4. The network redelivers the first write, inadvertently overwriting the second.
-            Deliver { src: Id::from(1), dst: Id::from(0), msg: Put(1, 'A') },
-            // 5. The client receives the ack for the second write (and sends a read request).
             Deliver { src: Id::from(0), dst: Id::from(1), msg: PutOk(2) },
-            // 6. The server receives the read request (and replies with the current value).
+            Deliver { src: Id::from(1), dst: Id::from(0), msg: Put(1, 'A') },
             Deliver { src: Id::from(1), dst: Id::from(0), msg: Get(3) },
-            // 7. The client receives a value that violates linearizability. QED.
             Deliver { src: Id::from(0), dst: Id::from(1), msg: GetOk(3, 'A') },
         ]);
     }
 }
 
-// Running the program spawns a single actor on UDP port 3000. Messages are JSON-serialized.
 fn main() {
     env_logger::init_from_env(env_logger::Env::default().default_filter_or(&quot;info&quot;));
     spawn(
@@ -290,31 +302,45 @@ fn main() {
             (SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3000), ActorContext)
         ]).unwrap();
 }
-
 </code></pre>
+<h2><a class="header" href="#actor-framework-intro" id="actor-framework-intro">Actor Framework Intro</a></h2>
+<p>The code implements a simple server using the <a href="https://en.wikipedia.org/wiki/Actor_model">actor
+model</a>  in which an &quot;actor&quot; is an
+object that can respond to events (such as timeouts or message receipt) and in
+turn updates its internal state and generates outputs (such as sending a
+message or setting a timer).</p>
+<p>If you are familiar with the actor model (e.g. via the
+<a href="https://www.erlang.org/">Erlang</a> language or the <a href="https://akka.io/">Akka</a>
+library), then it is useful to note distinguishing characteristics of
+Stateright's approach:</p>
+<ol>
+<li>Stateright <strong>must have visibility of every input and output</strong> to facilitate
+simulating all possible system behaviors. That means inputs and outputs must
+be in the form of messages. For example, if your actor needs to interface
+with a database, you might introduce <code>DbExec(...)</code> output and
+<code>DbResult(...)</code> input messages; or if it needs to interface with the file
+system, you might introduce <code>FileRead(...)</code> output and <code>FileResult(...)</code>
+input messages. An adapter layer would then translate these into the
+corresponding effects rather than treating them as standard messages between
+actors in the system. This technique will be demonstrated in a later
+chapter.</li>
+<li>Outputs <strong>do not take effect until after the handler returns</strong>. The outputs
+are simply collected in the <a href="https://docs.rs/stateright/latest/stateright/actor/struct.Out.html"><code>o: &amp;mut Out&lt;Self&gt;</code></a>
+parameter whenever methods such as
+<a href="https://docs.rs/stateright/latest/stateright/actor/struct.Out.html#method.send"><code>Out::send(...)</code></a>
+are called, and Stateright's actor runtime sends them later.</li>
+<li>The <strong>actor state is only accessible via a clone-on-write cell</strong> with the
+<a href="https://doc.rust-lang.org/std/borrow/enum.Cow.html"><code>state: &amp;mut Cow&lt;Self::State&gt;</code></a>
+parameter. Doing so enables Stateright to more efficiently validate a system
+when it is enumerating different branches of nondeterministic behavior.</li>
+</ol>
 <h2><a class="header" href="#implementation-walkthrough" id="implementation-walkthrough">Implementation Walkthrough</a></h2>
-<p>The code starts by implementing a simple server using the &quot;<a href="https://en.wikipedia.org/wiki/Actor_model">actor
-model</a>.&quot; An actor is an event
-oriented process that is able to communicate with other actors over a network
-by sending messages.</p>
 <p>The server responds to <code>Put</code> and <code>Get</code> messages based only on its own local
 state, providing its clients with a simple form of distributed storage,
 sometimes known as a <a href="https://en.wikipedia.org/wiki/Shared_register">shared
 register</a>.  Responses are linked
 to requests via a request ID chosen by the client.</p>
-<p>Stateright must have visibility of every actor/input output to facilitate
-enumerating possible system behaviors. That means the actor should only
-interface with the outside world via events passed by the Stateright framework.</p>
-<p><code>state: &amp;mut</code>
-<a href="https://doc.rust-lang.org/std/borrow/enum.Cow.html"><code>Cow&lt;Self::State&gt;</code></a> is a
-clone-on-write smart pointer keeping track of whether the actor's internal
-state changed while <code>o: &amp;mut</code>
-<a href="https://docs.rs/stateright/latest/stateright/actor/struct.Out.html"><code>Out&lt;Self&gt;</code></a>
-is a container recording output/commands. Commands recorded by methods such as
-<a href="https://docs.rs/stateright/latest/stateright/actor/struct.Out.html#method.send"><code>Out::send(...)</code></a>
-do not take effect until the method returns.</p>
-<pre><code class="language-rust ignore noplayground">
-type RequestId = u64;
+<pre><code class="language-rust ignore noplayground">type RequestId = u64;
 
 #[derive(Clone)]
 struct ActorContext;
@@ -342,18 +368,7 @@ impl Actor for ActorContext {
     }
 }
 </code></pre>
-<p>A test follows. It employs a technique called model checking that is similar
-to <a href="https://github.com/BurntSushi/quickcheck">property based testing</a>, wherein
-the programmer writes a predicate indicating what constitutes correct behavior;
-for example, &quot;<em>the function's output is a sorted permutation of its input</em>.&quot;
-But whereas property based testing often enumerates the outputs of a
-deterministic algorithm based on a random sampling of possible inputs, model
-checking often systematically enumerates the reachable states of a
-nondeterministic system with less focus on the variety of initial inputs; for
-example &quot;<em>if clients write <code>X</code> followed by <code>Y</code> to the the same database key
-<code>K</code>, then a subsequent read may only return <code>Y</code> until the next write,
-regardless of how the network reorders or redelivers messages</em>.&quot;</p>
-<p>The test checks the system for a property called
+<p>A test follows. The test checks the system for a property called
 <a href="https://en.wikipedia.org/wiki/Linearizability">linearizability</a>, which loosely
 speaking means that the visible behavior of the register emulated by the actor
 system is identical to that of a register within a single-threaded system. In
@@ -382,24 +397,6 @@ For instance, the sequential specification could indicate:</p>
 important to keep in mind the question &quot;linearizable with respect to <em>what</em>?&quot;
 In this chapter, the sequential specification is register semantics, provided
 by Stateright, but later chapters will involve other sequential specifications.</p>
-<blockquote>
-<p><strong>Terminology</strong>: The term &quot;linearizable&quot; derives from the insight that the
-operations executed by a system form a directed acyclic graph (a partial order)
-where edges indicate &quot;happens before.&quot; For example, if Computer1 sends messages
-to invoke operations on Computer2 and Computer3, then the message sends happens
-before Computer2 or Computer3 handle them, but the handling of the messages by
-Computer2 and Computer 3 lack a defined order because the messages
-<a href="https://en.wikipedia.org/wiki/Race_condition">race</a>. A &quot;linearization&quot; defines
-a viable linear order of seemingly atomic events such as &quot;Computer 1 sends the
-messages, Computer 3 handles one, and then Computer2 handles the other.&quot; A
-system is not linearizable when its behavior cannot be mapped to a
-linearization. For example, if the operation invoked on Computer2 was <code>Append &quot;Hello&quot;</code> and Computer3 was <code>Append &quot;World&quot;</code>, but the final value interlaced the
-inputs to form <code>&quot;WolloHerld&quot;</code>, then the system would not be linearizable.
-Either <code>&quot;HelloWorld&quot;</code> or <code>&quot;WorldHello&quot;</code> on the other hand would be valid
-linearizations since the messages race. While this kind of understanding is not
-needed to validate a system for linearizability, it will assist you in
-debugging when Stateright indicates that a system is not linearizable.</p>
-</blockquote>
 <p>The test leverages
 <a href="https://docs.rs/stateright/latest/stateright/actor/register/struct.RegisterTestSystem.html"><code>RegisterTestSystem</code></a>,
 which is built into Stateright and defines a system whereby a specified number
@@ -407,9 +404,6 @@ of clients (only 1 in this case) write distinct values and independently read
 values without coordinating with one another. Under the hood
 <code>RegisterTestSystem</code> also leverages Stateright's built-in
 <a href="https://docs.rs/stateright/latest/stateright/semantics/struct.LinearizabilityTester.html"><code>LinearizabilityTester</code></a>.</p>
-<p>Stateright is able to find a bug that arises even if there is only a single
-client. The bug manifests whenever the network redeliveries messages, something
-that can and does happen in practice.</p>
 <pre><code class="language-rust ignore noplayground">    #[test]
     fn is_unfortunately_not_linearizable() {
         let checker = RegisterTestSystem {
@@ -419,29 +413,56 @@ that can and does happen in practice.</p>
         }.into_model().checker().spawn_dfs().join();
         //checker.assert_properties(); // TRY IT: Uncomment this line, and the test will fail.
         checker.assert_discovery(&quot;linearizable&quot;, vec![
-            // Here is a counterexample that Stateright will confirm. Each step indicates an
-            // incoming event observed by an actor For brevity counterexamples show actor inputs
-            // such as `Deliver` but not outputs such as `Send`.
-            //
-            // 1. The server receives a write from the client (which it acknowledges).
             Deliver { src: Id::from(1), dst: Id::from(0), msg: Put(1, 'A') },
-            // 2. The client receives the ack (and sends a second write with a new value).
             Deliver { src: Id::from(0), dst: Id::from(1), msg: PutOk(1) },
-            // 3. The server receives the second write (which it acknowledges).
             Deliver { src: Id::from(1), dst: Id::from(0), msg: Put(2, 'Z') },
-            // 4. The network redelivers the first write, inadvertently overwriting the second.
-            Deliver { src: Id::from(1), dst: Id::from(0), msg: Put(1, 'A') },
-            // 5. The client receives the ack for the second write (and sends a read request).
             Deliver { src: Id::from(0), dst: Id::from(1), msg: PutOk(2) },
-            // 6. The server receives the read request (and replies with the current value).
+            Deliver { src: Id::from(1), dst: Id::from(0), msg: Put(1, 'A') },
             Deliver { src: Id::from(1), dst: Id::from(0), msg: Get(3) },
-            // 7. The client receives a value that violates linearizability. QED.
             Deliver { src: Id::from(0), dst: Id::from(1), msg: GetOk(3, 'A') },
         ]);
     }
 </code></pre>
-<p>The last bit of code defines the <code>main</code> method, which runs the actor on a UDP
-socket, encoding messages with the JSON format.</p>
+<p>Stateright is able to find a bug that arises even if there is only a single
+client. The test indicates a sequence of steps that trigger the bug (AKA a
+<a href="https://docs.rs/stateright/0.23.0/stateright/struct.Path.html"><code>Path</code></a>), but
+in practice you would normally just call <code>checker.assert_properties()</code>, and
+Stateright would fail the test while indicating steps that reproduce the bug
+(although the specific example that it finds can vary).</p>
+<p>The actor with <code>Id</code> 0 is the server while the actor with <code>Id</code> 1 is the client.
+For brevity, the example shows actor inputs (<code>Deliver</code>) but not outputs.</p>
+<p><img src="getting-started.sequence.png" alt="sequence diagram for the linearizability violation" /></p>
+<ol>
+<li>The server receives a <code>Put</code> from the client with value <code>'A'</code>, which it
+acknowledges. The client receives the <code>PutOk</code> acknowledgement and in turn
+sends a second <code>Put</code> with a new value, <code>'Z'</code> (not shown yet since the test
+indicates messages deliveries only, not message sends).
+<pre><code>Deliver { src: Id::from(1), dst: Id::from(0), msg: Put(1, 'A') },
+Deliver { src: Id::from(0), dst: Id::from(1), msg: PutOk(1) },
+</code></pre>
+</li>
+<li>The server receives the second <code>Put</code>, which it acknowledges. The client
+receives the <code>PutOk</code> acknowledgement and in turn sends a <code>Get</code> request (not
+shown yet), expecting to read <code>'Z'</code>.
+<pre><code>Deliver { src: Id::from(1), dst: Id::from(0), msg: Put(2, 'Z') },
+Deliver { src: Id::from(0), dst: Id::from(1), msg: PutOk(2) },
+</code></pre>
+</li>
+<li>The network redelivers the first write, inadvertently overwriting the second:
+<pre><code>Deliver { src: Id::from(1), dst: Id::from(0), msg: Put(1, 'A') },
+</code></pre>
+</li>
+<li>The server receives the earlier <code>Get</code> request and replies with <code>'A'</code>. The
+client receives the unexpected value, which violates linearizability because
+from the perspective of the client, the system is not behaving as a
+single-threaded register.
+<pre><code>Deliver { src: Id::from(1), dst: Id::from(0), msg: Get(3) },
+Deliver { src: Id::from(0), dst: Id::from(1), msg: GetOk(3, 'A') },
+</code></pre>
+</li>
+</ol>
+<p>The last bit of code defines the <code>main</code> method, which allows you to run the
+actor on UDP port 3000, encoding messages with the JSON format.</p>
 <pre><code class="language-rust ignore noplayground">fn main() {
     env_logger::init_from_env(env_logger::Env::default().default_filter_or(&quot;info&quot;));
     spawn(
@@ -454,14 +475,13 @@ socket, encoding messages with the JSON format.</p>
 </code></pre>
 <h2><a class="header" href="#running" id="running">Running</a></h2>
 <p>Confirm the system behaves as expected by running the test, which should pass
-because the test asserts that the bug exists. It's a good idea to get into the
-habit of passing the <code>--release</code> flag when testing more complex systems so that
-Rust fully optimizes the code, as testing can be computationally intensive and
-time consuming.</p>
+because the test asserts that the bug exists. Include the <code>--release</code> flag so
+that Rust fully optimizes the code even during testing, as Stateright tests are
+computationally intensive and can be time consuming.</p>
 <pre><code class="language-sh">cargo test --release
 </code></pre>
 <p>Now run the actor on a UDP socket.</p>
-<pre><code class="language-sh">cargo run
+<pre><code class="language-sh">cargo run --release
 </code></pre>
 <p>If using a POSIX-oriented operating system,
 <a href="https://en.wikipedia.org/wiki/Netcat">netcat</a> can be used to interact with the
@@ -478,8 +498,9 @@ which will be more evident in the next chapter.</p>
 <h2><a class="header" href="#exercise" id="exercise">Exercise</a></h2>
 <p>Uncomment the <code>// TRY IT</code> line, then run the test again. It should fail
 indicating a sequence of steps that would cause the linearizability expectation
-to be violated. This exercise demonstrates how Stateright can detect flaws that
-would likely go undetected when simply reviewing the actor implementation.</p>
+to be violated, and these steps may differ from the example that we followed.
+This exercise demonstrates how Stateright can detect flaws that would likely go
+undetected when simply reviewing code.</p>
 <h2><a class="header" href="#summary" id="summary">Summary</a></h2>
 <p>This chapter introduced one of the simplest possible distributed systems and
 showed how Stateright can find a subtle bug. The next chapter <a href="./taming-the-network.html">Taming the

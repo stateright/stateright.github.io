@@ -6,6 +6,45 @@ stable. If you plan to use Stateright for production scenarios, then please
 [file a GitHub issue](https://github.com/stateright/stateright/issues/new) so
 that the author can coordinate with you to minimize any disruption.
 
+## Stateright's Value Proposition
+
+Stateright is a Rust library that simplifies implementing distributed systems
+while more importantly providing a powerful mechanism for verification.
+
+Verification of distributed systems is difficult because distributed algorithms
+must be resilient to nondeterminism caused by concurrency such as threads
+racing, but that's only part of the challenge.  Distributed algorithms also
+need to account for the fact that computers typically interface via [unreliable
+networks](https://aphyr.com/posts/288-the-network-is-reliable) that will
+periodically do things like reorder or lose messages (if you run your system in
+"the cloud," then it's running on an unreliable network).  Furthermore, often a
+distributed algorithm is expected to continue working even if a subset of
+computers crash at arbitrary points in their execution.  Designing algorithms
+that continue working in the presence of this added nondeterminism is
+nontrivial and error prone, which necessitates special tools for verifying
+correctness.
+
+One approach to verifying the correctness of distributed algorithms is to run
+them in an environment that randomly introduces nondeterminism more frequently
+than a normal environment would. This is the approach taken by
+[Jepsen](https://jepsen.io/analyses), and it has proven to be incredibly
+effective, finding bugs in distributed systems such as
+[etcd](https://jepsen.io/analyses/etcd-3.4.3),
+[PostgreSQL](https://jepsen.io/analyses/postgresql-12.3),
+[Redis](https://aphyr.com/posts/283-call-me-maybe-redis), and
+[Zookeeper](https://aphyr.com/posts/291-call-me-maybe-zookeeper) among many
+others.
+
+Stateright's approach is similar, but rather than testing a random subset of
+possible behaviors, it tests *all possible observable behaviors* within a
+particular specification.  The catch is that Stateright needs to be embedded
+into the system's implementation, whereas solutions such as Jepsen do not,
+making them amenable to testing a wider range of software; but if you are
+writing a distributed system in Rust, then Stateright can provide additional
+verification over random testing.
+
+## An Example
+
 Let's start with the simplest nontrivial distributed system: a single client
 that can interact with a single server by reading or writing a value. We'll see
 that even this minimal example is susceptible to surprising behavior.
@@ -13,7 +52,7 @@ that even this minimal example is susceptible to surprising behavior.
 [Install the Rust programming
 language](https://www.rust-lang.org/learn/get-started) if it is not already
 installed, then initialize a new project using the `cargo` utility included
-with Rust. If you are new to Rust, then you may want to review some of the
+with Rust. If you are new to Rust, then you should also review some of the
 language's [learning resources](https://www.rust-lang.org/learn).
 
 ```sh
@@ -29,18 +68,48 @@ Define dependencies in `Cargo.toml`.
 ```
 
 Here is the complete implementation for `main.rs`. Copy-paste it into your own
-file. The next section explains the most important aspects.
+file. The subsequent sections will explain further.
 
 ```rust,ignore,noplayground
 {{#include ../rs-src/getting-started/src/main.rs:all}}
 ```
 
-## Implementation Walkthrough
+## Actor Framework Intro
 
-The code starts by implementing a simple server using the "[actor
-model](https://en.wikipedia.org/wiki/Actor_model)." An actor is an event
-oriented process that is able to communicate with other actors over a network
-by sending messages.
+The code implements a simple server using the [actor
+model](https://en.wikipedia.org/wiki/Actor_model)  in which an "actor" is an
+object that can respond to events (such as timeouts or message receipt) and in
+turn updates its internal state and generates outputs (such as sending a
+message or setting a timer).
+
+If you are familiar with the actor model (e.g. via the
+[Erlang](https://www.erlang.org/) language or the [Akka](https://akka.io/)
+library), then it is useful to note distinguishing characteristics of
+Stateright's approach:
+
+1. Stateright **must have visibility of every input and output** to facilitate
+   simulating all possible system behaviors. That means inputs and outputs must
+   be in the form of messages. For example, if your actor needs to interface
+   with a database, you might introduce `DbExec(...)` output and
+   `DbResult(...)` input messages; or if it needs to interface with the file
+   system, you might introduce `FileRead(...)` output and `FileResult(...)`
+   input messages. An adapter layer would then translate these into the
+   corresponding effects rather than treating them as standard messages between
+   actors in the system. This technique will be demonstrated in a later
+   chapter.
+2. Outputs **do not take effect until after the handler returns**. The outputs
+   are simply collected in the [`o: &mut
+   Out<Self>`](https://docs.rs/stateright/latest/stateright/actor/struct.Out.html)
+   parameter whenever methods such as
+   [`Out::send(...)`](https://docs.rs/stateright/latest/stateright/actor/struct.Out.html#method.send)
+   are called, and Stateright's actor runtime sends them later.
+3. The **actor state is only accessible via a clone-on-write cell** with the
+   [`state: &mut
+   Cow<Self::State>`](https://doc.rust-lang.org/std/borrow/enum.Cow.html)
+   parameter. Doing so enables Stateright to more efficiently validate a system
+   when it is enumerating different branches of nondeterministic behavior.
+
+## Implementation Walkthrough
 
 The server responds to `Put` and `Get` messages based only on its own local
 state, providing its clients with a simple form of distributed storage,
@@ -48,36 +117,11 @@ sometimes known as a [shared
 register](https://en.wikipedia.org/wiki/Shared_register).  Responses are linked
 to requests via a request ID chosen by the client.
 
-Stateright must have visibility of every actor/input output to facilitate
-enumerating possible system behaviors. That means the actor should only
-interface with the outside world via events passed by the Stateright framework.
-
-`state: &mut`
-[`Cow<Self::State>`](https://doc.rust-lang.org/std/borrow/enum.Cow.html) is a
-clone-on-write smart pointer keeping track of whether the actor's internal
-state changed while `o: &mut`
-[`Out<Self>`](https://docs.rs/stateright/latest/stateright/actor/struct.Out.html)
-is a container recording output/commands. Commands recorded by methods such as
-[`Out::send(...)`](https://docs.rs/stateright/latest/stateright/actor/struct.Out.html#method.send)
-do not take effect until the method returns.
-
 ```rust,ignore,noplayground
 {{#include ../rs-src/getting-started/src/main.rs:actor}}
 ```
 
-A test follows. It employs a technique called model checking that is similar
-to [property based testing](https://github.com/BurntSushi/quickcheck), wherein
-the programmer writes a predicate indicating what constitutes correct behavior;
-for example, "*the function's output is a sorted permutation of its input*."
-But whereas property based testing often enumerates the outputs of a
-deterministic algorithm based on a random sampling of possible inputs, model
-checking often systematically enumerates the reachable states of a
-nondeterministic system with less focus on the variety of initial inputs; for
-example "*if clients write `X` followed by `Y` to the the same database key
-`K`, then a subsequent read may only return `Y` until the next write,
-regardless of how the network reorders or redelivers messages*."
-
-The test checks the system for a property called
+A test follows. The test checks the system for a property called
 [linearizability](https://en.wikipedia.org/wiki/Linearizability), which loosely
 speaking means that the visible behavior of the register emulated by the actor
 system is identical to that of a register within a single-threaded system. In
@@ -105,24 +149,6 @@ important to keep in mind the question "linearizable with respect to *what*?"
 In this chapter, the sequential specification is register semantics, provided
 by Stateright, but later chapters will involve other sequential specifications.
 
-> **Terminology**: The term "linearizable" derives from the insight that the
-operations executed by a system form a directed acyclic graph (a partial order)
-where edges indicate "happens before." For example, if Computer1 sends messages
-to invoke operations on Computer2 and Computer3, then the message sends happens
-before Computer2 or Computer3 handle them, but the handling of the messages by
-Computer2 and Computer 3 lack a defined order because the messages
-[race](https://en.wikipedia.org/wiki/Race_condition). A "linearization" defines
-a viable linear order of seemingly atomic events such as "Computer 1 sends the
-messages, Computer 3 handles one, and then Computer2 handles the other." A
-system is not linearizable when its behavior cannot be mapped to a
-linearization. For example, if the operation invoked on Computer2 was `Append
-"Hello"` and Computer3 was `Append "World"`, but the final value interlaced the
-inputs to form `"WolloHerld"`, then the system would not be linearizable.
-Either `"HelloWorld"` or `"WorldHello"` on the other hand would be valid
-linearizations since the messages race. While this kind of understanding is not
-needed to validate a system for linearizability, it will assist you in
-debugging when Stateright indicates that a system is not linearizable.
-
 The test leverages
 [`RegisterTestSystem`](https://docs.rs/stateright/latest/stateright/actor/register/struct.RegisterTestSystem.html),
 which is built into Stateright and defines a system whereby a specified number
@@ -131,16 +157,52 @@ values without coordinating with one another. Under the hood
 `RegisterTestSystem` also leverages Stateright's built-in
 [`LinearizabilityTester`](https://docs.rs/stateright/latest/stateright/semantics/struct.LinearizabilityTester.html).
 
-Stateright is able to find a bug that arises even if there is only a single
-client. The bug manifests whenever the network redeliveries messages, something
-that can and does happen in practice.
-
 ```rust,ignore,noplayground
 {{#include ../rs-src/getting-started/src/main.rs:test}}
 ```
 
-The last bit of code defines the `main` method, which runs the actor on a UDP
-socket, encoding messages with the JSON format.
+Stateright is able to find a bug that arises even if there is only a single
+client. The test indicates a sequence of steps that trigger the bug (AKA a
+[`Path`](https://docs.rs/stateright/0.23.0/stateright/struct.Path.html)), but
+in practice you would normally just call `checker.assert_properties()`, and
+Stateright would fail the test while indicating steps that reproduce the bug
+(although the specific example that it finds can vary).
+
+The actor with `Id` 0 is the server while the actor with `Id` 1 is the client.
+For brevity, the example shows actor inputs (`Deliver`) but not outputs.
+
+![sequence diagram for the linearizability violation](getting-started.sequence.png)
+
+1. The server receives a `Put` from the client with value `'A'`, which it
+   acknowledges. The client receives the `PutOk` acknowledgement and in turn
+   sends a second `Put` with a new value, `'Z'` (not shown yet since the test
+   indicates messages deliveries only, not message sends).
+   ```
+   Deliver { src: Id::from(1), dst: Id::from(0), msg: Put(1, 'A') },
+   Deliver { src: Id::from(0), dst: Id::from(1), msg: PutOk(1) },
+   ```
+2. The server receives the second `Put`, which it acknowledges. The client
+   receives the `PutOk` acknowledgement and in turn sends a `Get` request (not
+   shown yet), expecting to read `'Z'`.
+   ```
+   Deliver { src: Id::from(1), dst: Id::from(0), msg: Put(2, 'Z') },
+   Deliver { src: Id::from(0), dst: Id::from(1), msg: PutOk(2) },
+   ```
+3. The network redelivers the first write, inadvertently overwriting the second:
+   ```
+   Deliver { src: Id::from(1), dst: Id::from(0), msg: Put(1, 'A') },
+   ```
+4. The server receives the earlier `Get` request and replies with `'A'`. The
+   client receives the unexpected value, which violates linearizability because
+   from the perspective of the client, the system is not behaving as a
+   single-threaded register.
+   ```
+   Deliver { src: Id::from(1), dst: Id::from(0), msg: Get(3) },
+   Deliver { src: Id::from(0), dst: Id::from(1), msg: GetOk(3, 'A') },
+   ```
+
+The last bit of code defines the `main` method, which allows you to run the
+actor on UDP port 3000, encoding messages with the JSON format.
 
 ```rust,ignore,noplayground
 {{#include ../rs-src/getting-started/src/main.rs:main}}
@@ -149,10 +211,9 @@ socket, encoding messages with the JSON format.
 ## Running
 
 Confirm the system behaves as expected by running the test, which should pass
-because the test asserts that the bug exists. It's a good idea to get into the
-habit of passing the `--release` flag when testing more complex systems so that
-Rust fully optimizes the code, as testing can be computationally intensive and
-time consuming.
+because the test asserts that the bug exists. Include the `--release` flag so
+that Rust fully optimizes the code even during testing, as Stateright tests are
+computationally intensive and can be time consuming.
 
 ```sh
 cargo test --release
@@ -161,7 +222,7 @@ cargo test --release
 Now run the actor on a UDP socket.
 
 ```sh
-cargo run
+cargo run --release
 ```
 
 If using a POSIX-oriented operating system,
@@ -183,8 +244,9 @@ nc -u localhost 3000
 
 Uncomment the `// TRY IT` line, then run the test again. It should fail
 indicating a sequence of steps that would cause the linearizability expectation
-to be violated. This exercise demonstrates how Stateright can detect flaws that
-would likely go undetected when simply reviewing the actor implementation.
+to be violated, and these steps may differ from the example that we followed.
+This exercise demonstrates how Stateright can detect flaws that would likely go
+undetected when simply reviewing code.
 
 ## Summary
 
