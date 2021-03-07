@@ -1762,7 +1762,10 @@ TLA+</a> may also be interesting to you.</p>
 At this time Stateright is a small personal project, and the main author is
 eager to hear community feedback.</p>
 <h1><a class="header" href="#comparison-with-tla" id="comparison-with-tla">Comparison with TLA+</a></h1>
-<p>This chapter compares two abstract models of the <a href="https://en.wikipedia.org/wiki/Two-phase_commit_protocol">two-phase commit
+<p>The previous part of this book focused on model checking runnable actor
+systems.  Stateright is also able to model check higher level designs via
+&quot;abstract models,&quot; much like a traditional model checker. This chapter compares
+two abstract models of the <a href="https://en.wikipedia.org/wiki/Two-phase_commit_protocol">two-phase commit
 protocol</a>: one written
 in a language called <a href="https://en.wikipedia.org/wiki/TLA%2B">TLA+</a> and the other
 written in Rust. The chapter exists to assist those who are already familiar
@@ -1793,6 +1796,10 @@ Request permissions from Publications Dept, ACM Inc., fax +1 (212) 869-0481, or
 Trans. Database Syst. 31, 1 (March 2006), 133–160.
 DOI:<a href="https://doi.org/10.1145/1132863.1132867">https://doi.org/10.1145/1132863.1132867</a></p>
 </blockquote>
+<p><a href="https://lamport.azurewebsites.net/video/video6.html">Lecture 6</a> of Leslie
+Lamport's <a href="https://lamport.azurewebsites.net/video/videos.html">TLA+ Video
+Course</a> is recommended for
+an additional overview of the specification.</p>
 <h2><a class="header" href="#unique-benefits-of-each" id="unique-benefits-of-each">Unique Benefits of Each</a></h2>
 <p>Before getting to the code, it is valuable to highlight that while the
 functionality of TLC (the model checker for TLA+) and Stateright overlap to
@@ -1842,7 +1849,9 @@ regressions and also facilitating performance investigation.</li>
 properties that serve to sanity check that expected outcomes are possible.
 These are less powerful than temporal properties but serve a slightly
 different purpose because examples of these properties being met are included
-in the checker discoveries.</li>
+in the checker discoveries. You can simulate these in TLC by introducing
+false &quot;invariants,&quot; but they need to be commented out and periodically run,
+which is more cumbersome.</li>
 <li><strong>Features</strong>: <a href="https://docs.rs/stateright/latest/stateright/struct.CheckerBuilder.html#method.serve">Stateright
 Explorer</a>
 allows you to interactively browse a model's state space and also lets you
@@ -1938,7 +1947,7 @@ impl Model for TwoPhaseSys {
 <li>the resource mangers are ready to start a transaction;</li>
 <li>the sole transaction manager is ready to start a transaction;</li>
 <li>the transaction manager's view of each resource manager indicates that none
-have prepared for a transaction yet;</li>
+have indicated that they are preparing a transaction;</li>
 <li>and the network is an empty set.</li>
 </ul>
 <p>Note that set semantics provide an ideal model for a network in this case
@@ -1965,9 +1974,11 @@ so a transient network partition can still cause message redelivery with TCP).</
 }
 </code></pre>
 </td></tr></table>
-<p>Now we get to the most interesting part of the model, the state transitions.
-TLA+ requires each action definition to precede the aggregate next state
-relation (<code>TPNext</code> in this case). Each action serves two roles: (1) it defines
+<p>Now we get to the most interesting part of the model, the state transitions
+(which Stateright calls
+<a href="https://docs.rs/stateright/latest/stateright/trait.Model.html#tymethod.actions">actions</a>).
+TLA+ requires each transition relation to precede the aggregate next state
+relation (<code>Next</code> in this case). Each action serves two roles: (1) it defines
 its own preconditions and (2) it definies the subsequent state change (along
 with the unchanged states). In Stateright it is more idiomatic (and performant)
 to distinguish between the preconditions (in <code>fn actions...</code>) and state change
@@ -2103,7 +2114,8 @@ decision.</p>
 </td></tr></table>
 <h1><a class="header" href="#performance-comparison" id="performance-comparison">Performance Comparison</a></h1>
 <p>Now we need to configure the model. For TLC, this is done via a special &quot;CFG&quot;
-file, while for Stateright you simply introduce a Rust test.</p>
+file, while for Stateright you simply introduce a Rust test. Rust also requires
+a <code>Cargo.toml</code> file.</p>
 <table><tr><td>
 <pre><code class="language-ignore noplayground">SPECIFICATION Spec
 INVARIANT TypeOK
@@ -2116,39 +2128,44 @@ CONSTANTS
 #[test]
 fn can_model_2pc() {
     use stateright::Checker;
-    TwoPhaseSys { rms: 0..9 }.checker()
+    TwoPhaseSys { rms: 0..8 }.checker()
         .threads(num_cpus::get()).spawn_dfs().join()
     	.assert_properties();
 }
+</code></pre>
+<pre><code class="language-rust ignore noplayground">[package]
+name = &quot;comparison-with-tlaplus&quot;
+version = &quot;0.1.0&quot;
+edition = &quot;2018&quot;
+
+[dependencies]
+num_cpus = &quot;1&quot;
+stateright = &quot;0.23&quot;
 </code></pre>
 </td></tr></table>
 <p>TLA+ can be run from the command line using a tool such as
 <a href="https://github.com/pmer/tla-bin">tla-bin</a> or
 <a href="https://github.com/hwayne/tlacli">tlacli</a>, while the Stateright test is run
-using <code>cargo test --release</code>. The example below first calls <code>build</code> to avoid
-timing compilation.</p>
+using <code>cargo test --release</code>. The example below first calls <code>build --tests</code> to
+avoid timing dependency compilation but then revises the file timestamp to
+include compilation time relevant to the development iteration cycle.
+enables native compilation since the resulting binary does not need to be
+distributed.</p>
 <table><tr><td>
-<pre><code class="language-ignore noplayground">$ tlc -workers auto TwoPhase.tla
-...
-18507778 states generated,
-1745408 distinct states found,
-0 states left on queue.
-...
-Finished in 12s at (2021-02-28 15:28:44)
+<pre><code class="language-ignore noplayground">$ tlc -workers auto TwoPhase.tla  
 </code></pre>
 </td><td>
-<pre><code class="language-ignore noplayground">$ cargo build --release
+<pre><code class="language-ignore noplayground">$ export RUSTFLAGS='-C target-cpu=native'  
+$ cargo build --tests --release
+$ touch src/lib.rs
 $ time cargo test --release
-...
-real    0m1.275s
-...
 </code></pre>
 </td></tr></table>
 <p>Here is a table comparing model checking times on the author's laptop:</p>
 <table><thead><tr><th>#RM</th><th>TLC</th><th>Stateright</th><th>Speedup</th></tr></thead><tbody>
-<tr><td>7</td><td>3 s</td><td>0.372 s</td><td>~8X</td></tr>
-<tr><td>8</td><td>12 s</td><td>1.275 s</td><td>~9X</td></tr>
-<tr><td>9</td><td>90 s</td><td>7.786 s</td><td>~11X</td></tr>
+<tr><td>7</td><td>3 s</td><td>1.697 s</td><td>1.7X</td></tr>
+<tr><td>8</td><td>12 s</td><td>2.566 s</td><td>4.6X</td></tr>
+<tr><td>9</td><td>90 s</td><td>8.902 s</td><td>10.1X</td></tr>
 </tbody></table>
 
                     </main>

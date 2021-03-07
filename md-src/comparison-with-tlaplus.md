@@ -1,6 +1,9 @@
 # Comparison with TLA+
 
-This chapter compares two abstract models of the [two-phase commit
+The previous part of this book focused on model checking runnable actor
+systems.  Stateright is also able to model check higher level designs via
+"abstract models," much like a traditional model checker. This chapter compares
+two abstract models of the [two-phase commit
 protocol](https://en.wikipedia.org/wiki/Two-phase_commit_protocol): one written
 in a language called [TLA+](https://en.wikipedia.org/wiki/TLA%2B) and the other
 written in Rust. The chapter exists to assist those who are already familiar
@@ -32,6 +35,11 @@ Citation:
 > Jim Gray and Leslie Lamport. 2006. Consensus on transaction commit. ACM
 Trans. Database Syst. 31, 1 (March 2006), 133–160.
 DOI:[https://doi.org/10.1145/1132863.1132867](https://doi.org/10.1145/1132863.1132867)
+
+[Lecture 6](https://lamport.azurewebsites.net/video/video6.html) of Leslie
+Lamport's [TLA+ Video
+Course](https://lamport.azurewebsites.net/video/videos.html) is recommended for
+an additional overview of the specification.
 
 ## Unique Benefits of Each
 
@@ -84,7 +92,9 @@ Unique benefits of Stateright/Rust:
   properties that serve to sanity check that expected outcomes are possible.
   These are less powerful than temporal properties but serve a slightly
   different purpose because examples of these properties being met are included
-  in the checker discoveries.
+  in the checker discoveries. You can simulate these in TLC by introducing
+  false "invariants," but they need to be commented out and periodically run,
+  which is more cumbersome.
 - **Features**: [Stateright
   Explorer](https://docs.rs/stateright/latest/stateright/struct.CheckerBuilder.html#method.serve)
   allows you to interactively browse a model's state space and also lets you
@@ -173,7 +183,7 @@ The initial aggregate state is one where
 - the resource mangers are ready to start a transaction;
 - the sole transaction manager is ready to start a transaction;
 - the transaction manager's view of each resource manager indicates that none
-  have prepared for a transaction yet;
+  have indicated that they are preparing a transaction;
 - and the network is an empty set.
 
 Note that set semantics provide an ideal model for a network in this case
@@ -197,9 +207,11 @@ so a transient network partition can still cause message redelivery with TCP).
 
 </td></tr></table>
 
-Now we get to the most interesting part of the model, the state transitions.
-TLA+ requires each action definition to precede the aggregate next state
-relation (`TPNext` in this case). Each action serves two roles: (1) it defines
+Now we get to the most interesting part of the model, the state transitions
+(which Stateright calls
+[actions](https://docs.rs/stateright/latest/stateright/trait.Model.html#tymethod.actions)).
+TLA+ requires each transition relation to precede the aggregate next state
+relation (`Next` in this case). Each action serves two roles: (1) it defines
 its own preconditions and (2) it definies the subsequent state change (along
 with the unchanged states). In Stateright it is more idiomatic (and performant)
 to distinguish between the preconditions (in `fn actions...`) and state change
@@ -240,7 +252,8 @@ decision.
 # Performance Comparison
 
 Now we need to configure the model. For TLC, this is done via a special "CFG"
-file, while for Stateright you simply introduce a Rust test.
+file, while for Stateright you simply introduce a Rust test. Rust also requires
+a `Cargo.toml` file.
 
 <table><tr><td>
 
@@ -254,34 +267,34 @@ file, while for Stateright you simply introduce a Rust test.
 {{#include ../rs-src/comparison-with-tlaplus/src/lib.rs:configuration}}
 ```
 
+```rust,ignore,noplayground
+{{#include ../rs-src/comparison-with-tlaplus/Cargo.toml}}
+```
+
 </td></tr></table>
 
 TLA+ can be run from the command line using a tool such as
 [tla-bin](https://github.com/pmer/tla-bin) or
 [tlacli](https://github.com/hwayne/tlacli), while the Stateright test is run
-using `cargo test --release`. The example below first calls `build` to avoid
-timing compilation.
+using `cargo test --release`. The example below first calls `build --tests` to
+avoid timing dependency compilation but then revises the file timestamp to
+include compilation time relevant to the development iteration cycle.
+enables native compilation since the resulting binary does not need to be
+distributed.
 
 <table><tr><td>
 
 ```ignore,noplayground
-$ tlc -workers auto TwoPhase.tla
-...
-18507778 states generated,
-1745408 distinct states found,
-0 states left on queue.
-...
-Finished in 12s at (2021-02-28 15:28:44)
+$ tlc -workers auto TwoPhase.tla  
 ```
 
 </td><td>
 
 ```ignore,noplayground
-$ cargo build --release
+$ export RUSTFLAGS='-C target-cpu=native'  
+$ cargo build --tests --release
+$ touch src/lib.rs
 $ time cargo test --release
-...
-real    0m1.275s
-...
 ```
 
 </td></tr></table>
@@ -290,6 +303,6 @@ Here is a table comparing model checking times on the author's laptop:
 
 | #RM | TLC   | Stateright | Speedup |
 |-----|-------|------------|---------|
-| 7   |   3 s |    0.372 s |     ~8X |
-| 8   |  12 s |    1.275 s |     ~9X |
-| 9   |  90 s |    7.786 s |    ~11X |
+| 7   |   3 s |    1.697 s |    1.7X |
+| 8   |  12 s |    2.566 s |    4.6X |
+| 9   |  90 s |    8.902 s |   10.1X |

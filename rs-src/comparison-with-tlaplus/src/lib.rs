@@ -145,7 +145,7 @@ fn properties(&self) -> Vec<Property<Self>> {
 #[test]
 fn can_model_2pc() {
     use stateright::Checker;
-    TwoPhaseSys { rms: 0..9 }.checker()
+    TwoPhaseSys { rms: 0..8 }.checker()
         .threads(num_cpus::get()).spawn_dfs().join()
     	.assert_properties();
 }
