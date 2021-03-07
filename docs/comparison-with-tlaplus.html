@@ -568,10 +568,11 @@ $ time cargo test --release
 </code></pre>
 </td></tr></table>
 <p>Here is a table comparing model checking times on the author's laptop:</p>
-<table><thead><tr><th>#RM</th><th>TLC</th><th>Stateright</th><th>Speedup</th></tr></thead><tbody>
-<tr><td>7</td><td>3 s</td><td>1.697 s</td><td>1.7X</td></tr>
-<tr><td>8</td><td>12 s</td><td>2.566 s</td><td>4.6X</td></tr>
-<tr><td>9</td><td>90 s</td><td>8.902 s</td><td>10.1X</td></tr>
+<table><thead><tr><th>#RM</th><th>States</th><th>TLC</th><th>Stateright</th><th>Speedup</th></tr></thead><tbody>
+<tr><td>7</td><td>296,448</td><td>3 s</td><td>1.697 s</td><td>1.8X</td></tr>
+<tr><td>8</td><td>1,745,408</td><td>12 s</td><td>2.566 s</td><td>4.7X</td></tr>
+<tr><td>9</td><td>10,340,352</td><td>90 s</td><td>8.902 s</td><td>10.1X</td></tr>
+<tr><td>10</td><td>61,515,776</td><td>674 s</td><td>54.709 s</td><td>12.3X</td></tr>
 </tbody></table>
 
                     </main>
