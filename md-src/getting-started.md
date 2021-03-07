@@ -45,9 +45,10 @@ verification over random testing.
 
 ## An Example
 
-Let's start with the simplest nontrivial distributed system: a single client
-that can interact with a single server by reading or writing a value. We'll see
-that even this minimal example is susceptible to surprising behavior.
+Let's start with a very simple distributed system: a
+single client that can interact with a single server by
+reading or writing a value. We'll see that even this
+minimal example is susceptible to surprising behavior.
 
 [Install the Rust programming
 language](https://www.rust-lang.org/learn/get-started) if it is not already
@@ -204,7 +205,7 @@ For brevity, the example shows actor inputs (`Deliver`) but not outputs.
 1. The server receives a `Put` from the client with value `'A'`, which it
    acknowledges. The client receives the `PutOk` acknowledgement and in turn
    sends a second `Put` with a new value, `'Z'` (not shown yet since the test
-   indicates messages deliveries only, not message sends).
+   indicates message deliveries only, not message sends).
    ```
    Deliver { src: Id::from(1), dst: Id::from(0), msg: Put(1, 'A') },
    Deliver { src: Id::from(0), dst: Id::from(1), msg: PutOk(1) },

@@ -260,9 +260,10 @@ making them amenable to testing a wider range of software; but if you are
 writing a distributed system in Rust, then Stateright can provide additional
 verification over random testing.</p>
 <h2><a class="header" href="#an-example" id="an-example">An Example</a></h2>
-<p>Let's start with the simplest nontrivial distributed system: a single client
-that can interact with a single server by reading or writing a value. We'll see
-that even this minimal example is susceptible to surprising behavior.</p>
+<p>Let's start with a very simple distributed system: a
+single client that can interact with a single server by
+reading or writing a value. We'll see that even this
+minimal example is susceptible to surprising behavior.</p>
 <p><a href="https://www.rust-lang.org/learn/get-started">Install the Rust programming
 language</a> if it is not already
 installed, then initialize a new project using the <code>cargo</code> utility included
@@ -511,7 +512,7 @@ For brevity, the example shows actor inputs (<code>Deliver</code>) but not outpu
 <li>The server receives a <code>Put</code> from the client with value <code>'A'</code>, which it
 acknowledges. The client receives the <code>PutOk</code> acknowledgement and in turn
 sends a second <code>Put</code> with a new value, <code>'Z'</code> (not shown yet since the test
-indicates messages deliveries only, not message sends).
+indicates message deliveries only, not message sends).
 <pre><code>Deliver { src: Id::from(1), dst: Id::from(0), msg: Put(1, 'A') },
 Deliver { src: Id::from(0), dst: Id::from(1), msg: PutOk(1) },
 </code></pre>
