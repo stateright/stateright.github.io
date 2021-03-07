@@ -148,7 +148,9 @@ In the next chapter, we will introduce the notion of "consensus" and implement
 it via the Multi-Paxos algorithm. That chapter is not yet available, so in the
 meantime you can learn more about Stateright by browsing additional [Stateright
 examples](https://github.com/stateright/stateright/tree/master/examples) and
-reviewing the [Stateright API docs](https://docs.rs/stateright).
+reviewing the [Stateright API docs](https://docs.rs/stateright). If you are
+familiar with TLA+, then the subsequent chapter [Comparison with
+TLA+](./comparison-with-tlaplus.md) may also be interesting to you.
 
 If you have any questions, comments, or ideas, please share them on
 [Stateright's Discord server](https://discord.com/channels/781357978652901386).
