@@ -1,0 +1,4 @@
+# For ripgrep. For more details, see:
+# https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md#automatic-filtering
+
+docs/
