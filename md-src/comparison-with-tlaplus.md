@@ -279,8 +279,6 @@ TLA+ can be run from the command line using a tool such as
 using `cargo test --release`. The example below first calls `build --tests` to
 avoid timing dependency compilation but then revises the file timestamp to
 include compilation time relevant to the development iteration cycle.
-enables native compilation since the resulting binary does not need to be
-distributed.
 
 <table><tr><td>
 
