@@ -3,7 +3,6 @@
 [![crates.io](https://img.shields.io/crates/d/stateright.svg)](https://crates.io/crates/stateright)
 [![docs.rs](https://docs.rs/stateright/badge.svg)](https://docs.rs/stateright)
 [![stars](https://img.shields.io/github/stars/stateright/stateright?style=social)](https://github.com/stateright/stateright)
-[![youtube](https://img.shields.io/youtube/views/Oh0Dmz6asbs?style=social)](https://youtube.com/playlist?list=PLUhyBsVvEJjaF1VpNhLRfIA4E7CFPirmz)
 
 # Building Distributed Systems With Stateright
 
