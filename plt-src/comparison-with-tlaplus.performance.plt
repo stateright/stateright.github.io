@@ -4,7 +4,7 @@ set ylabel 'sec'
 set key left top
 set logscale x
 set logscale y
-set term svg
+set term svg enhanced background rgb 'white'
 
 cd 'plt-src/'
 set output '../md-src/comparison-with-tlaplus.performance.svg'
