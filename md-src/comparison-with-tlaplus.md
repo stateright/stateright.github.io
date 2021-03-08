@@ -299,7 +299,11 @@ $ time cargo test --release
 
 </td></tr></table>
 
-Here is a table comparing model checking times on the author's laptop:
+Stateright is generally faster, and the speedup tends to increase with larger
+state spaces. A comparison of model checking times on the author's laptop
+follows.
+
+![plot of checking time (y) against state count (x)](comparison-with-tlaplus.performance.svg)
 
 | #RM | States     | TLC   | Stateright | Speedup |
 |-----|------------|-------|------------|---------|
@@ -307,3 +311,4 @@ Here is a table comparing model checking times on the author's laptop:
 | 8   | 1,745,408  | 12 s  | 2.566 s    | 4.7X    |
 | 9   | 10,340,352 | 90 s  | 8.902 s    | 10.1X   |
 | 10  | 61,515,776 | 674 s | 54.709 s   | 12.3X   |
+
