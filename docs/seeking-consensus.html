@@ -190,7 +190,7 @@ edition = &quot;2018&quot;
 env_logger = &quot;0.7&quot;
 serde = &quot;1.0&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.23&quot;
+stateright = &quot;0.24&quot;
 </code></pre>
 <p>By now you have the hang of implementing basic actor systems in Stateright, so
 we'll defer the full <code>main.rs</code> source code listing until later in the chapter.</p>
@@ -298,13 +298,12 @@ Stateright identifies a sequence of steps that are not linearizable. The
 sequence is nontrivial and demonstrates why a model checker is so useful for
 implementing distributed systems.</p>
 <pre><code class="language-rust ignore noplayground">        // Fails if there are 3 clients.
-        let checker = RegisterTestSystem {
+        let checker = RegisterCfg {
             servers: vec![
                 ActorContext { peer_ids: vec![Id::from(1)].into_iter().collect() },
                 ActorContext { peer_ids: vec![Id::from(0)].into_iter().collect() },
             ],
             client_count: 3,
-            .. Default::default()
         }.into_model().checker()
         .spawn_dfs().join();     // TRY IT: Comment out this line, and uncomment
         //.serve(&quot;0:3000&quot;);      //         the next to load Stateright Explorer.
@@ -473,20 +472,19 @@ impl Actor for ActorContext {
 mod test {
     use super::*;
     use stateright::*;
+    use ActorModelAction::Deliver;
     use InternalMsg::{Replicate, ReplicateOk};
     use RegisterMsg::{Get, GetOk, Internal, Put, PutOk};
-    use SystemAction::Deliver;
 
     #[test]
     fn appears_linearizable_in_limited_scenarios() {
         // Succeeds if there are 2 clients.
-        let checker = RegisterTestSystem {
+        let checker = RegisterCfg {
             servers: vec![
                 ActorContext { peer_ids: vec![Id::from(1)].into_iter().collect() },
                 ActorContext { peer_ids: vec![Id::from(0)].into_iter().collect() },
             ],
             client_count: 2,
-            .. Default::default()
         }.into_model().checker().spawn_bfs().join();
         checker.assert_properties();
     }
@@ -494,13 +492,12 @@ mod test {
     #[test]
     fn not_generally_linearizable() {
         // Fails if there are 3 clients.
-        let checker = RegisterTestSystem {
+        let checker = RegisterCfg {
             servers: vec![
                 ActorContext { peer_ids: vec![Id::from(1)].into_iter().collect() },
                 ActorContext { peer_ids: vec![Id::from(0)].into_iter().collect() },
             ],
             client_count: 3,
-            .. Default::default()
         }.into_model().checker()
         .spawn_dfs().join();     // TRY IT: Comment out this line, and uncomment
         //.serve(&quot;0:3000&quot;);      //         the next to load Stateright Explorer.

@@ -108,20 +108,19 @@ impl Actor for ActorContext {
 mod test {
     use super::*;
     use stateright::*;
+    use ActorModelAction::Deliver;
     use InternalMsg::{Replicate, ReplicateOk};
     use RegisterMsg::{Get, GetOk, Internal, Put, PutOk};
-    use SystemAction::Deliver;
 
     #[test]
     fn appears_linearizable_in_limited_scenarios() {
         // Succeeds if there are 2 clients.
-        let checker = RegisterTestSystem {
+        let checker = RegisterCfg {
             servers: vec![
                 ActorContext { peer_ids: vec![Id::from(1)].into_iter().collect() },
                 ActorContext { peer_ids: vec![Id::from(0)].into_iter().collect() },
             ],
             client_count: 2,
-            .. Default::default()
         }.into_model().checker().spawn_bfs().join();
         checker.assert_properties();
     }
@@ -130,13 +129,12 @@ mod test {
     fn not_generally_linearizable() {
         // ANCHOR: test
         // Fails if there are 3 clients.
-        let checker = RegisterTestSystem {
+        let checker = RegisterCfg {
             servers: vec![
                 ActorContext { peer_ids: vec![Id::from(1)].into_iter().collect() },
                 ActorContext { peer_ids: vec![Id::from(0)].into_iter().collect() },
             ],
             client_count: 3,
-            .. Default::default()
         }.into_model().checker()
         .spawn_dfs().join();     // TRY IT: Comment out this line, and uncomment
         //.serve("0:3000");      //         the next to load Stateright Explorer.

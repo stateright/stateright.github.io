@@ -52,35 +52,32 @@ impl Actor for ActorContext {
 mod test {
     use super::*;
     use stateright::*;
+    use ActorModelAction::Deliver;
     use RegisterMsg::{Get, GetOk, Put, PutOk};
-    use SystemAction::Deliver;
 
     // ANCHOR: test
     #[test]
     fn satisfies_all_properties() {
         // Works with 1 client.
-        let checker = RegisterTestSystem {
+        let checker = RegisterCfg {
             servers: vec![ActorContext],
             client_count: 1,
-            .. Default::default()
         }.into_model().checker().spawn_dfs().join();
         checker.assert_properties();
 
         // Or with multiple clients.
-        let checker = RegisterTestSystem {
+        let checker = RegisterCfg {
             servers: vec![ActorContext],
             client_count: 2, // TIP: test with `--release` mode for more clients
-            .. Default::default()
         }.into_model().checker().spawn_dfs().join();
         checker.assert_properties();
     }
 
     #[test]
     fn not_linearizable_with_two_servers() {
-        let checker = RegisterTestSystem {
+        let checker = RegisterCfg {
             servers: vec![ActorContext, ActorContext], // two servers
             client_count: 1,
-            .. Default::default()
         }.into_model().checker().spawn_dfs().join();
         //checker.assert_properties(); // TRY IT: Uncomment this line, and the test will fail.
         checker.assert_discovery("linearizable", vec![

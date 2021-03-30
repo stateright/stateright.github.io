@@ -204,13 +204,16 @@ fn is_linearizable() {
     use stateright::{Checker, Model};
 
     // ANCHOR: test
-    let checker = RegisterTestSystem {
-        servers: vec![
-            AbdActor { peers: model_peers(0, 2) },
-            AbdActor { peers: model_peers(1, 2) },
-        ],
-        client_count: 2,
-        within_boundary: |state| {
+    let checker = RegisterCfg {
+            servers: vec![
+                AbdActor { peers: model_peers(0, 2) },
+                AbdActor { peers: model_peers(1, 2) },
+            ],
+            client_count: 2,
+        }
+        .into_model()
+        .duplicating_network(DuplicatingNetwork::No)
+        .within_boundary(|_, state| {
             state.actor_states.iter().all(|s| {
                 if let RegisterActorState::Server(s) = &**s {
                     s.seq.0 <= 3
@@ -218,11 +221,8 @@ fn is_linearizable() {
                     true
                 }
             })
-        },
-        duplicating_network: DuplicatingNetwork::No,
-        .. Default::default()
-    }.into_model().checker()
-    .spawn_dfs().join();
+        })
+        .checker().spawn_dfs().join();
     checker.assert_properties();
     // ANCHOR_END: test
 }

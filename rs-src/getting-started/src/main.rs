@@ -37,16 +37,15 @@ impl Actor for ActorContext {
 mod test {
     use super::*;
     use stateright::*;
+    use ActorModelAction::Deliver;
     use RegisterMsg::{Get, GetOk, Put, PutOk};
-    use SystemAction::Deliver;
 
     // ANCHOR: test
     #[test]
     fn is_unfortunately_not_linearizable() {
-        let checker = RegisterTestSystem {
+        let checker = RegisterCfg {
             servers: vec![ActorContext],
             client_count: 1,
-            .. Default::default()
         }.into_model().checker().spawn_dfs().join();
         //checker.assert_properties(); // TRY IT: Uncomment this line, and the test will fail.
         checker.assert_discovery("linearizable", vec![

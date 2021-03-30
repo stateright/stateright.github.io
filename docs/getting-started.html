@@ -230,7 +230,7 @@ edition = &quot;2018&quot;
 [dependencies]
 env_logger = &quot;0.7&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.23&quot;
+stateright = &quot;0.24&quot;
 </code></pre>
 <p>Here is the complete implementation for <code>main.rs</code>. Copy-paste it into your own
 file. The subsequent sections will explain further.</p>
@@ -270,15 +270,14 @@ impl Actor for ActorContext {
 mod test {
     use super::*;
     use stateright::*;
+    use ActorModelAction::Deliver;
     use RegisterMsg::{Get, GetOk, Put, PutOk};
-    use SystemAction::Deliver;
 
     #[test]
     fn is_unfortunately_not_linearizable() {
-        let checker = RegisterTestSystem {
+        let checker = RegisterCfg {
             servers: vec![ActorContext],
             client_count: 1,
-            .. Default::default()
         }.into_model().checker().spawn_dfs().join();
         //checker.assert_properties(); // TRY IT: Uncomment this line, and the test will fail.
         checker.assert_discovery(&quot;linearizable&quot;, vec![
@@ -430,10 +429,9 @@ values without coordinating with one another. Under the hood
 <a href="https://docs.rs/stateright/latest/stateright/semantics/struct.LinearizabilityTester.html"><code>LinearizabilityTester</code></a>.</p>
 <pre><code class="language-rust ignore noplayground">    #[test]
     fn is_unfortunately_not_linearizable() {
-        let checker = RegisterTestSystem {
+        let checker = RegisterCfg {
             servers: vec![ActorContext],
             client_count: 1,
-            .. Default::default()
         }.into_model().checker().spawn_dfs().join();
         //checker.assert_properties(); // TRY IT: Uncomment this line, and the test will fail.
         checker.assert_discovery(&quot;linearizable&quot;, vec![

@@ -189,7 +189,7 @@ edition = &quot;2018&quot;
 env_logger = &quot;0.7&quot;
 serde = &quot;1.0&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.23&quot;
+stateright = &quot;0.24&quot;
 </code></pre>
 <h2><a class="header" href="#a-truly-atomic-register" id="a-truly-atomic-register">A Truly Atomic Register</a></h2>
 <p>One problem with the earlier protocol is that reads can observe different
@@ -435,13 +435,16 @@ impl Actor for AbdActor {
 <p>The test case confirms that this implementation is linearizable. Remember to
 run the tests with the <code>--release</code> flag if you want to check with a larger
 number of clients or servers, as the state space grows rapidly.</p>
-<pre><code class="language-rust ignore noplayground">    let checker = RegisterTestSystem {
-        servers: vec![
-            AbdActor { peers: model_peers(0, 2) },
-            AbdActor { peers: model_peers(1, 2) },
-        ],
-        client_count: 2,
-        within_boundary: |state| {
+<pre><code class="language-rust ignore noplayground">    let checker = RegisterCfg {
+            servers: vec![
+                AbdActor { peers: model_peers(0, 2) },
+                AbdActor { peers: model_peers(1, 2) },
+            ],
+            client_count: 2,
+        }
+        .into_model()
+        .duplicating_network(DuplicatingNetwork::No)
+        .within_boundary(|_, state| {
             state.actor_states.iter().all(|s| {
                 if let RegisterActorState::Server(s) = &amp;**s {
                     s.seq.0 &lt;= 3
@@ -449,11 +452,8 @@ number of clients or servers, as the state space grows rapidly.</p>
                     true
                 }
             })
-        },
-        duplicating_network: DuplicatingNetwork::No,
-        .. Default::default()
-    }.into_model().checker()
-    .spawn_dfs().join();
+        })
+        .checker().spawn_dfs().join();
     checker.assert_properties();
 </code></pre>
 <h2><a class="header" href="#complete-implementation" id="complete-implementation">Complete Implementation</a></h2>
@@ -647,13 +647,16 @@ impl Actor for AbdActor {
 fn is_linearizable() {
     use stateright::{Checker, Model};
 
-    let checker = RegisterTestSystem {
-        servers: vec![
-            AbdActor { peers: model_peers(0, 2) },
-            AbdActor { peers: model_peers(1, 2) },
-        ],
-        client_count: 2,
-        within_boundary: |state| {
+    let checker = RegisterCfg {
+            servers: vec![
+                AbdActor { peers: model_peers(0, 2) },
+                AbdActor { peers: model_peers(1, 2) },
+            ],
+            client_count: 2,
+        }
+        .into_model()
+        .duplicating_network(DuplicatingNetwork::No)
+        .within_boundary(|_, state| {
             state.actor_states.iter().all(|s| {
                 if let RegisterActorState::Server(s) = &amp;**s {
                     s.seq.0 &lt;= 3
@@ -661,11 +664,8 @@ fn is_linearizable() {
                     true
                 }
             })
-        },
-        duplicating_network: DuplicatingNetwork::No,
-        .. Default::default()
-    }.into_model().checker()
-    .spawn_dfs().join();
+        })
+        .checker().spawn_dfs().join();
     checker.assert_properties();
 }
 
