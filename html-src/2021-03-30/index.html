@@ -1,0 +1,784 @@
+<!doctype html>
+<html>
+<head>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<title>Building Distributed</title>
+
+<link rel="stylesheet" href="dist/reset.css">
+<link rel="stylesheet" href="dist/reveal.css">
+<link rel="stylesheet" href="dist/theme/moon.css" id="theme">
+<link rel="stylesheet" href="plugin/highlight/monokai.css" id="highlight-theme">
+
+<style>
+    .em { font-size: 0.75em; font-style: italic }
+    .caption { font-size: 0.50em; margin-top: 1em; }
+    .heading { text-decoration: underline }
+</style>
+
+</head>
+<body>
+
+<div class="reveal">
+<div class="slides">
+
+<section id="title">
+    <aside class="notes" data-markdown>
+        - Reminder: `S` for speaker view. `F` for fullscreen. `?`
+        - Brief intro.
+        - If you enjoy this talk check out the book.
+    </aside>
+    <h3>Building Distributed Systems With Stateright</h3>
+    <p>
+        Presenter:
+        <a href="https://github.com/jonnadal">Jonathan Nadal</a>
+    </p>
+    <p>
+        Book:
+        <a href="https://www.stateright.rs">www.stateright.rs</a>
+    </p>
+</section>
+
+<section>
+<section id="goals" data-auto-animate>
+    <aside class="notes" data-markdown>
+        - Before we start let's outline where we're going.
+        - Questions this talk attempts to answer.
+        - If something doesn't make sense, please interrupt.
+        - If time permits I'll do a live demo at the end.
+        - Before we start, quickly preview some answers.
+    </aside>
+    <h4>This talk attemps to to answer...</h4>
+</section>
+<section data-auto-animate>
+    <aside class="notes" data-markdown>
+        - Before we start let's outline where we're going.
+        - Questions this talk attempts to answer.
+        - If something doesn't make sense, please interrupt.
+        - If time permits I'll do a live demo at the end.
+        - Before we start, quickly preview some answers.
+    </aside>
+    <h4>This talk attemps to to answer...</h4>
+    <ul>
+        <li>
+            Why are distributed systems
+            <a href="#difficulties">difficult</a>?
+            <div class="fragment fade-in-then-semi-out em">
+                e.g. race conditions and other nondeterminism
+            </div>
+        </li>
+        <li>
+            What
+            <a href="#techniques">techniques</a>
+            are effective?
+            <div class="fragment fade-in-then-semi-out em">
+                e.g chaos testing and model checking
+            </div>
+        </li>
+        <li>
+            How can their limitations be
+            <a href="#stateright">overcome</a>?
+            <div class="fragment fade-in-then-semi-out em">
+                e.g. embeddable model checking
+            </div>
+        </li>
+    </ul>
+</section>
+</section>
+
+<section>
+<section id="difficulties" data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>Why are distributed systems difficult?</h4>
+</section>
+<section data-auto-animate>
+    <aside class="notes" data-markdown>
+        - Why even distribute? zero downtime and improved performance
+        - Some of these problems you already see in multithreaded software.
+        - Time: my "N nanos since Unix epoch" vs yours. total order locally only. additional ordering imposed by events (even an atomic clock is only useful within its resolution)
+        - Different versions:
+            - No "stop the world" upgrades.
+            - Must be able to roll back.
+            - "Rogue" versions behind faulty hardware.
+        - Message reordering can be compared to sending a letter
+    </aside>
+    <h4>Why are distributed systems difficult?</h4>
+    <div class="heading">Decentralization and nondeterminism</div>
+    <ul>
+        <li class="fragment fade-in-then-semi-out">Time is a partial order</li>
+        <li class="fragment fade-in-then-semi-out">Node crashes</li>
+        <li class="fragment fade-in-then-semi-out">Node timeouts</li>
+        <li class="fragment fade-in-then-semi-out">Node version differences</li>
+        <li class="fragment fade-in-then-semi-out">Message reordering</li>
+        <li class="fragment fade-in-then-semi-out">Message loss</li>
+        <li class="fragment fade-in-then-semi-out">Message redelivery (network/retries)</li>
+        <li class="fragment fade-in-then-semi-out">Security vulnerabilities</li>
+        <li class="fragment fade-in-then-semi-out">...</li>
+    </ul>
+</section>
+<section data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>Why are distributed systems difficult?</h4>
+    <div class="heading">Decentralization and nondeterminism</div>
+    <img src="nondeterminism.svg" />
+</section>
+</section>
+
+<section>
+<section id="techniques" data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>What techniques are effective?</h4>
+</section>
+<section data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>What techniques are effective?</h4>
+    <ul>
+        <li class="fragment">Exercise the nondeterminism.</li>
+        <li class="fragment">
+            Writing test cases for individual system "traces"<br />
+            (sequences of steps) is insufficient.
+        </li>
+    </ul>
+</section>
+<section data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>What techniques are effective?</h4>
+    <div class="heading">Jepsen</div>
+    <ul>
+        <li class="fragment fade-in-then-semi-out">
+            Black-box testing of production binaries.
+        </li>
+        <li class="fragment fade-in-then-semi-out">
+            Crashes nodes, introduces partitions, skews clocks, ...
+        </li>
+        <li class="fragment fade-in-then-semi-out">
+            Tests observable system behavior for correctness
+            (e.g. linearizability).
+        </li>
+        <li class="fragment fade-in-then-semi-out">
+            Dozens of real world systems tested. Most failed.
+            <div class="em">
+                Cassandra, CockroachDB, Elasticsearch, Hazelcast, Kafka,
+                PostgreSQL, RabbitMQ, Redis, TiDB, VoltDB, ...
+            </div>
+        </li>
+        <li class="fragment fade-in-then-semi-out"><em>Limitation</em>: tests a random subset of possible traces</li>
+    </ul>
+</section>
+<section data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>What techniques are effective?</h4>
+    <div class="heading" data-id="proofs">Proofs</div>
+    <ul>
+        <li class="fragment fade-in-then-semi-out">Inductive invariants verify all system behaviors.</li>
+        <li class="fragment fade-in-then-semi-out">Applicable to design or implementation</li>
+        <li class="fragment fade-in-then-semi-out"><em>Limitation</em>: requires extensive training</li>
+    </ul>
+</section>
+<section data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>What techniques are effective?</h4>
+    <div class="heading" data-id="proofs">Proofs</div>
+    <ul>
+        <li>
+            Industry example: IronFleet
+            <a href="https://www.microsoft.com/en-us/research/publication/ironfleet-proving-safety-liveness-practical-distributed-systems/" width="50%">
+                <img src="ironfleet-proving.png" />
+            </a>
+        </li>
+    </ul>
+</section>
+<section data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>What techniques are effective?</h4>
+    <div class="heading" data-id="model-checking">Model checking</div>
+    <ul>
+        <li class="fragment fade-in-then-semi-out">Enumerate all traces in a boundary</li>
+        <li class="fragment fade-in-then-semi-out">
+            Typically design only<br />
+            <a href="https://cacm.acm.org/magazines/2015/4/184705-who-builds-a-house-without-drawing-blueprints/fulltext">
+                Who Builds a House Without Drawing Blueprints
+            </a><br />
+            <em>Limitation</em>: risk of implementation divergence
+        </li>
+    </ul>
+</section>
+<section data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>What techniques are effective?</h4>
+    <div class="heading" data-id="model-checking">Model checking</div>
+    <ul>
+        <li>
+            Industry example: TLA+/TLC for AWS S3
+            <a href="http://lamport.azurewebsites.net/tla/amazon-excerpt.html">
+                <img src="how-amazon.png" />
+            </a>
+        </li>
+    </ul>
+</section>
+</section>
+
+<section>
+<section id="stateright" data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>How can their limitations be overcome?</h4>
+</section>
+<section data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>How can their limitations be overcome?</h4>
+    <div class="em">
+        Introducing
+        <a data-id="s" href="https://github.com/stateright/stateright">Stateright</a>,
+        a model checker for distributed systems!
+    </div>
+</section>
+<section data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>How can their limitations be overcome?</h4>
+    <div class="heading">Stateright...</div>
+    <ul>
+        <li class="fragment">is a model checker provided as a Rust library.</li>
+        <li class="fragment">allows you to verify systems implemented in Rust.</li>
+        <li class="fragment">includes a "time travel debugger."</li>
+        <li class="fragment">includes a model for an actor system.</li>
+        <li class="fragment">includes a runtime for that actor system.</li>
+        <li class="fragment">includes code to define reference semantics<br />for the system.</li>
+        <li class="fragment">includes a linearizability tester.</li>
+        <li class="fragment">includes extensive documentation.</li>
+    </ul>
+</section>
+<section data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>How can their limitations be overcome?</h4>
+    <div class="heading">Stateright's own limitations and caveats</div>
+    <ul>
+        <li class="fragment">Requires access to source code.</li>
+        <li class="fragment">Only supports Rust at this time.</li>
+        <li class="fragment">Actor runtime is a simplistic proof-of-concept.</li>
+        <li class="fragment">Does not yet have a sizable community.</li>
+        <li class="fragment">
+            Will have breaking changes prior to the 1.0 release.
+            <div class="em">
+                But I can coordinate with early adopters to minimize disruption.
+            </div>
+        </li>
+    </ul>
+</section>
+<section data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>How can their limitations be overcome?</h4>
+    <div class="heading">Prior Art</div>
+    <div class="em"></div>
+    <ul>
+        <li>
+            <a href="https://link.springer.com/article/10.1007/s10703-005-1489-x">
+                VeriSoft
+            </a> (for C)
+        </li>
+        <li>
+            <a href="https://concuerror.com/">
+                Concuerror
+            </a> (for Erlang)
+        </li>
+        <li>
+            <a href="https://github.com/javapathfinder/jpf-core/wiki">
+                Java PathFinder
+            </a> (for the JVM)
+        </li>
+        <li>
+            <a href="https://www.microsoft.com/en-us/research/project/coyote/">
+                Coyote
+            </a> (for .NET)
+        </li>
+    </ul>
+</section>
+</section>
+
+<section>
+<section id="stateright-checker" data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>Stateright Model Checker</h4>
+</section>
+<section id="model-trait" data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>Stateright Model Checker</h4>
+    <div class="heading">Model Trait</div>
+    <pre><code data-trim data-line-numbers="1-3|4|5-7|8-11|12"><script type="text/template">
+        trait Model {
+            type State;
+            type Action;
+            fn init_states(&self) -> Vec<Self::State>;
+            fn actions(&self,
+                       state: &Self::State,
+                       actions: &mut Vec<Self::Action>);
+            fn next_state(&self,
+                          last_state: &Self::State,
+                          action: Self::Action)
+                -> Option<Self::State>;
+            fn properties(&self) -> Vec<Property<Self>>;
+        }
+    </script></code></pre>
+</section>
+<section id="puzzle" data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>Stateright Model Checker</h4>
+    <div class="heading" data-id="puzzle">Example: Sliding Puzzle</div>
+    <div class="em">puzzles must be solvable</div>
+    <div class="caption">
+        From
+        <a href="https://en.wikipedia.org/wiki/Sliding_puzzle#/media/File:15-Puzzle.jpg">
+            Wikipedia
+        </a>
+        (public domain):
+    </div>
+    <div>
+        <img src="15-Puzzle.jpg" />
+    </div>
+</section>
+<section id="puzzle-code" data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>Stateright Model Checker</h4>
+    <div class="heading" data-id="puzzle">Example: Sliding Puzzle</div>
+    <pre><code data-trim data-line-numbers="1|3-4|6-8|10-12|14-21|23-27|28-34|35-40|43-50"><script type="text/template">
+        struct Puzzle([u8; 9]);
+
+        #[derive(Clone, Debug, Eq, PartialEq)]
+        enum Slide { Down, Up, Right, Left }
+
+        impl Model for Puzzle {
+            type State = [u8; 9];
+            type Action = Slide;
+
+            fn init_states(&self) -> Vec<Self::State> {
+                vec![self.0]
+            }
+
+            fn actions(...) {
+                actions.append(&mut vec![
+                    Slide::Down,
+                    Slide::Up,
+                    Slide::Right,
+                    Slide::Left,
+                ]);
+            }
+
+            fn next_state(...) -> Option<Self::State> {
+                let empty = last_state.iter()
+                    .position(|x| *x == 0).unwrap();
+                let empty_y = empty / 3;
+                let empty_x = empty % 3;
+                let maybe_from = match action {
+                    Slide::Down  if empty_y > 0 => Some(empty - 3),
+                    Slide::Up    if empty_y < 2 => Some(empty + 3),
+                    Slide::Right if empty_x > 0 => Some(empty - 1),
+                    Slide::Left  if empty_x < 2 => Some(empty + 1),
+                    _ => None
+                };
+                maybe_from.map(|from| {
+                    let mut next_state = *last_state;
+                    next_state[empty] = last_state[from];
+                    next_state[from] = 0;
+                    next_state
+                })
+            }
+
+            fn properties(&self) -> Vec<Property<Self>> {
+                vec![Property::<Self>::sometimes("solved", |_, s| {
+                    let solved = [0, 1, 2,
+                                  3, 4, 5,
+                                  6, 7, 8];
+                    s == &solved
+                })]
+            }
+        }
+    </script></code></pre>
+</section>
+<section id="puzzle-not-solvable" data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>Stateright Model Checker</h4>
+    <div class="heading" data-id="puzzle">Example: Sliding Puzzle</div>
+    If not solvable...
+    <pre><code data-trim class="rust"><script type="text/template">
+        Puzzle([6, 4, 2,
+                3, 5, 8,
+                1, 7, 0])
+            .checker().spawn_bfs().join()
+            .assert_properties();
+    </script></code></pre>
+    ... then automated tests fail.
+    <pre><code data-trim class="plaintext"><script type="text/template">
+        ... panicked at 'Discovery for "solved" not found.', ...
+    </script></code></pre>
+</section>
+<section id="puzzle-solvable" data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>Stateright Model Checker</h4>
+    <div class="heading" data-id="puzzle">Example: Sliding Puzzle</div>
+    If solvable, you can also verify a solution "trace."
+    <pre><code class="rust" data-trim data-line-numbers="1-4|5|6-10|11-15|16-20|21-25"><script type="text/template">
+        Puzzle([1, 4, 2,
+                3, 5, 8,
+                6, 7, 0])
+            .checker().spawn_bfs().join()
+            .assert_discovery("solved", vec![
+                Slide::Down,
+                // ... results in:
+                //       [1, 4, 2,
+                //        3, 5, 0,
+                //        6, 7, 8]
+                Slide::Right,
+                // ... results in:
+                //       [1, 4, 2,
+                //        3, 0, 5,
+                //        6, 7, 8]
+                Slide::Down,
+                // ... results in:
+                //       [1, 0, 2,
+                //        3, 4, 5,
+                //        6, 7, 8]
+                Slide::Right,
+                // ... results in:
+                //       [0, 1, 2,
+                //        3, 4, 5,
+                //        6, 7, 8]
+            ]);
+    </script></code></pre>
+</section>
+<section id="ibc" data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>Stateright Model Checker</h4>
+    <div class="heading" data-id="ibc">Industry Example: ibc-rs</div>
+    <ul>
+        <li>
+            <a href="https://github.com/cosmos/ibc">
+                Inter-Blockchain Communication protocol
+            </a>
+        </li>
+        <li>
+            Rust impl: <a href="https://github.com/informalsystems/ibc-rs">
+                github.com/informalsystems/ibc-rs
+            </a>
+        </li>
+        <li>
+            Copyright <a href="https://informal.systems/">Informal Systems</a>
+            and
+            <a href="https://github.com/informalsystems/ibc-rs/graphs/contributors">
+                contributors
+            </a>
+        </li>
+        <li>
+            Open source:
+            <a href="https://github.com/informalsystems/ibc-rs/blob/master/LICENSE">
+                Apache License 2.0
+            </a>
+        </li>
+        <li>
+            Partial TLA+ to Stateright port by
+            <a href="https://github.com/vitorenesduarte">Vitor Enes Duarte</a>
+        </li>
+    </ul >
+</section>
+<section id="ibc-comparison" data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>Stateright Model Checker</h4>
+    <div class="heading" data-id="ibc">Industry Example: ibc-rs</div>
+    <pre><code data-trim><script type="text/template">
+        UpdateClientActions == [
+            type: {"ICS02UpdateClient"},
+            chainId: ChainIds,
+            clientId: ClientIds,
+            header: Heights
+        ]
+        Actions == ... \union
+                   UpdateClientActions
+    </script></code></pre>
+    &#8679; TLA+ / Rust &#8681;
+    <pre><code data-trim class="rust"><script type="text/template">
+        enum Action {
+            ...
+            ICS02UpdateClient {
+                chain_id: String,
+                client_id: u64,
+                header: u64,
+            },
+        }
+    </script></code></pre>
+</section>
+<section id="ibc-highlights" data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>Stateright Model Checker</h4>
+    <div class="heading" data-id="ibc">Industry Example: ibc-rs</div>
+    <div>Highlights:</div>
+    <ul>
+        <li>Model checks some of the Rust IBC implementation.</li>
+        <li>Incomplete experiment: ported a subset of protocol actions and only a trivial property thus far.</li>
+        <li>Stateright throughput exceeds TLC (TLA+ checker).</li>
+        <li>Rust is admittedly more verbose than TLA+.</li>
+    </ul>
+</section>
+</section>
+
+<section>
+<section id="stateright-actor" data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>Stateright Actor Framework</h4>
+</section>
+<section id="actor-trait" data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>Stateright Actor Framework</h4>
+    <div class="heading" data-id="actor-trait">Actor trait</div>
+    <pre><code data-trim data-line-numbers="1-3|4-5|6-9|10-12"><script type="text/template">
+        trait Actor {
+            type Msg;
+            type State;
+            fn on_start(&self, id: Id, o: &mut Out<Self>)
+                -> Self::State;
+            fn on_msg(&self, id: Id,
+                      state: &mut Cow<Self::State>,
+                      src: Id, msg: Self::Msg,
+                      o: &mut Out<Self>);
+            fn on_timeout(&self, id: Id,
+                          state: &mut Cow<Self::State>,
+                          o: &mut Out<Self>) { }
+        }
+    </script></code></pre>
+</section>
+<section id="pong-actor" data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>Stateright Actor Framework</h4>
+    <div class="heading" data-id="abd">Example: PingPongActor</div>
+    <pre><code data-trim data-line-numbers="1|3-4|6-8|9-14|15-16|17-28"><script type="text/template">
+        struct PingPongActor { serve_to: Option<Id> }
+
+        #[derive(Clone, Debug, Eq, Hash, PartialEq)]
+        enum PingPongMsg { Ping(u32), Pong(u32) }
+
+        impl Actor for PingPongActor {
+            type Msg = PingPongMsg;
+            type State = u32; // count
+            fn on_start(...) -> Self::State {
+                if let Some(id) = self.serve_to {
+                    o.send(id, PingPongMsg::Ping(0));
+                }
+                0
+            }
+            fn on_msg(...) {
+                match msg {
+                    PingPongMsg::Pong(msg_value)
+                    if **state == msg_value => {
+                        o.send(src,
+                               PingPongMsg::Ping(msg_value + 1));
+                        *state.to_mut() += 1;
+                    }
+                    PingPongMsg::Ping(msg_value)
+                    if **state == msg_value => {
+                        o.send(src,
+                               PingPongMsg::Pong(msg_value));
+                        *state.to_mut() += 1;
+                    }
+                    _ => {}
+                }
+            }
+        }
+    </script></code></pre>
+</section>
+<section id="actor-model" data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>Stateright Actor Framework</h4>
+    <div class="heading" data-id="system-trait">ActorModel struct</div>
+    <pre><code data-trim data-line-numbers="1-3|5|6|7|8|9|10|11|12-16|17"><script type="text/template">
+        struct ActorModel<A, C = (), H = ()>
+        where A: Actor,
+              H: Clone + Debug + Hash,
+        {
+            actors: Vec<A>,
+            pub cfg: C,
+            duplicating_network: DuplicatingNetwork,
+            init_history: H,
+            init_network: Vec<Envelope<A::Msg>>,
+            lossy_network: LossyNetwork,
+            properties: Vec<Property<ActorModel<A, C, H>>>,
+            record_msg_in:   fn(cfg: &C,
+                                    history: &H,
+                                    envelope: Envelope<&A::Msg>)
+                                 -> Option<H>,
+            record_msg_out:  fn(...) -> Option<H>,
+            within_boundary: fn(...) -> bool,
+        }
+    </script></code></pre>
+</section>
+<section id="pong-actor-model" data-auto-animate>
+    <aside class="notes" data-markdown>
+        - Must reach max doesn't hold on a lossy network.
+    </aside>
+    <h4>Stateright Actor Framework</h4>
+    <div class="heading" data-id="abd">Example: Ping-Pong ActorModel</div>
+    <pre><code style="font-size: 0.9em" data-trim data-line-numbers="1-3|5|7-11|13-15|16-19|20-23|24-27|28-34|35-38|39-42"><script type="text/template">
+        struct PingPongCfg {
+            max_nat: u32,
+        }
+
+        type PingPongHistory = (u32, u32); // (#in, #out)
+
+        impl PingPongCfg {
+            fn into_model(self) ->
+                ActorModel<PingPongActor,
+                           PingPongCfg,
+                           PingPongHistory>
+            {
+                ActorModel::new(self, (0, 0))
+                    .actor(PingPongActor { serve_to: Some(1.into()) })
+                    .actor(PingPongActor { serve_to: None })
+                    .record_msg_in(|cfg, history, _| {
+                        let (msg_in_count, msg_out_count) = *history;
+                        Some((msg_in_count + 1, msg_out_count))
+                    })
+                    .record_msg_out(|cfg, history, _| {
+                        let (msg_in_count, msg_out_count) = *history;
+                        Some((msg_in_count, msg_out_count + 1))
+                    })
+                    .within_boundary(|cfg, state| {
+                        state.actor_states.iter()
+                             .all(|count| **count <= cfg.max_nat)
+                    })
+                    .property(Always, "delta within 1", |_, state| {
+                        let max = state.actor_states.iter()
+                                       .max().unwrap();
+                        let min = state.actor_states.iter()
+                                       .min().unwrap();
+                        **max - **min <= 1
+                    })
+                    .property(Eventually, "reaches max", |model, state| {
+                        state.actor_states.iter()
+                             .any(|count| **count == model.cfg.max_nat)
+                    })
+                    .property(Always, "#in <= #out", |_, state| {
+                        let (msg_in_count, msg_out_count) = state.history;
+                        msg_in_count <= msg_out_count
+                    })
+            }
+        }
+    </script></code></pre>
+</section>
+<section id="explorer" data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>Stateright Actor Framework</h4>
+    <div class="heading" data-id="explorer">Stateright Explorer</div>
+    <div class="em">Time Travel Debugger</div>
+    <img src="explorer.png" />
+</section>
+</section>
+
+<section id="next" data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>What's Next?</h4>
+    <ul>
+        <li class="fragment fade-in-then-semi-out">
+            Foster a community of users and contributors
+        </li>
+        <li class="fragment fade-in-then-semi-out">
+            Book chapter on Multi-Paxos, then TBD (<em>ideas?</em>)
+        </li>
+        <li class="fragment fade-in-then-semi-out">
+            Dynamic partial order reduction (DPOR)
+        </li>
+        <li class="fragment fade-in-then-semi-out">
+            Liveness checker improvements
+        </li>
+        <li class="fragment fade-in-then-semi-out">
+            Tokio/async-std runtimes?
+        </li>
+        <li class="fragment fade-in-then-semi-out">
+            Improve ergonomics with generators?
+        </li>
+        <li class="fragment fade-in-then-semi-out">
+            Adapters for more languages? (<em>JavaScript?</em>)
+        </li>
+        <li class="fragment fade-in-then-semi-out">
+            <em>Other suggestions?</em>
+        </li>
+    </ul>
+</section>
+
+<section id="resources" data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>Stateright Resources</h4>
+    <ul>
+        <li>
+            <a href="https://docs.rs/stateright">
+                API rustdoc
+            </a>
+        </li>
+        <li>
+            <a href="https://www.stateright.rs/">
+                Building Distributed Systems With Stateright
+            </a> (Book)
+        </li>
+        <li>
+            <a href="https://github.com/stateright/stateright/tree/master/examples">
+                Code Examples
+            </a>
+        </li>
+        <li>
+            <a href="https://discord.com/channels/781357978652901386">
+                Q&A on Discord
+            </a>
+        </li>
+    </ul>
+</section>
+
+<section id="Q&A" data-auto-animate>
+    <aside class="notes" data-markdown>
+    </aside>
+    <h4>Q&amp;A and/or live demo</h4>
+</section>
+
+</div>
+</div>
+
+<script src="dist/reveal.js"></script>
+<script src="plugin/notes/notes.js"></script>
+<script src="plugin/markdown/markdown.js"></script>
+<script src="plugin/highlight/highlight.js"></script>
+<script>
+    Reveal.initialize({
+        hash: true,
+        plugins: [ RevealMarkdown, RevealHighlight, RevealNotes ],
+        slideNumber: 'c/t',
+    });
+</script>
+
+</body>
+</html>
