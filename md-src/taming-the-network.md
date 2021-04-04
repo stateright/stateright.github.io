@@ -47,6 +47,12 @@ generally agree upon the last value they received.
 {{#include ../rs-src/taming-the-network/src/main.rs:test}}
 ```
 
+Those two tests are supported by a helper that sets up the model.
+
+```rust,ignore,noplayground
+{{#include ../rs-src/taming-the-network/src/main.rs:test-model-fn}}
+```
+
 ## Suggested Exercises
 
 1. **Compaction**: Storing every request ID isn't viable for a long running

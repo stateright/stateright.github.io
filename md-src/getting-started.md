@@ -179,12 +179,10 @@ In this chapter, the sequential specification is register semantics, provided
 by Stateright, but later chapters will involve other sequential specifications.
 
 The test leverages
-[`RegisterTestSystem`](https://docs.rs/stateright/latest/stateright/actor/register/struct.RegisterTestSystem.html),
-which is built into Stateright and defines a system whereby a specified number
-of clients (only 1 in this case) write distinct values and independently read
-values without coordinating with one another. Under the hood
-`RegisterTestSystem` also leverages Stateright's built-in
-[`LinearizabilityTester`](https://docs.rs/stateright/latest/stateright/semantics/struct.LinearizabilityTester.html).
+[`RegisterActor`](https://docs.rs/stateright/latest/stateright/actor/register/enum.RegisterActor.html),
+which is built into Stateright and defines a kind of test fixture in which
+clients (only 1 in this case) write distinct values and independently read
+values without coordinating with one another.
 
 ```rust,ignore,noplayground
 {{#include ../rs-src/getting-started/src/main.rs:test}}

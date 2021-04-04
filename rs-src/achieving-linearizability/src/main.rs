@@ -10,20 +10,23 @@
 /* ANCHOR: all */
 use serde::{Deserialize, Serialize};
 use stateright::actor::{*, register::*};
-use stateright::util::{HashableHashMap, HashableHashSet};
 use std::borrow::Cow;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::net::{SocketAddrV4, Ipv4Addr};
 
 // ANCHOR: actor-msg
+type RequestId = u64;
+type Value = char;
+
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Serialize, Deserialize)]
 enum AbdMsg {
-    Query(TestRequestId),
-    AckQuery(TestRequestId, Seq, TestValue),
-    Replicate(TestRequestId, Seq, TestValue),
-    AckReplicate(TestRequestId),
+    Query(RequestId),
+    AckQuery(RequestId, Seq, Value),
+    Replicate(RequestId, Seq, Value),
+    AckReplicate(RequestId),
 }
 // ANCHOR_END: actor-msg
 use AbdMsg::*;
@@ -32,28 +35,28 @@ use AbdMsg::*;
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct AbdState {
     seq: Seq,
-    val: TestValue,
+    val: Value,
     phase: Option<AbdPhase>,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 enum AbdPhase {
     Phase1 {
-        request_id: TestRequestId,
+        request_id: RequestId,
         requester_id: Id,
-        write: Option<TestValue>, // `None` for read
-        responses: HashableHashMap<Id, (Seq, TestValue)>,
+        write: Option<Value>, // `None` for read
+        responses: BTreeMap<Id, (Seq, Value)>,
     },
     Phase2 {
-        request_id: TestRequestId,
+        request_id: RequestId,
         requester_id: Id,
-        read: Option<TestValue>, // `None` for write
-        acks: HashableHashSet<Id>,
+        read: Option<Value>, // `None` for write
+        acks: BTreeSet<Id>,
     },
 }
 
-type Seq = (WriteCount, Id); // `Id` for uniqueness
-type WriteCount = u64;
+type Seq = (LogicalClock, Id); // `Id` for uniqueness
+type LogicalClock = u64;
 // ANCHOR_END: actor-state
 
 // ANCHOR: actor
@@ -63,7 +66,7 @@ struct AbdActor {
 }
 
 impl Actor for AbdActor {
-    type Msg = RegisterMsg<TestRequestId, TestValue, AbdMsg>;
+    type Msg = RegisterMsg<RequestId, Value, AbdMsg>;
     type State = AbdState;
 
     fn on_start(&self, _id: Id, _o: &mut Out<Self>) -> Self::State {
@@ -85,7 +88,7 @@ impl Actor for AbdActor {
                     requester_id: src,
                     write: Some(val),
                     responses: {
-                        let mut responses = HashableHashMap::default();
+                        let mut responses = BTreeMap::default();
                         responses.insert(id, (state.seq, state.val.clone()));
                         responses
                     },
@@ -98,7 +101,7 @@ impl Actor for AbdActor {
                     requester_id: src,
                     write: None,
                     responses: {
-                        let mut responses = HashableHashMap::default();
+                        let mut responses = BTreeMap::default();
                         responses.insert(id, (state.seq, state.val.clone()));
                         responses
                     },
@@ -128,7 +131,7 @@ impl Actor for AbdActor {
 
                         // Determine sequencer and value.
                         let (_, (seq, val)) = responses.into_iter()
-                            .max_by_key(|(_, (seq, _))| seq)
+                            .max_by_key(|(_, (seq, _))| *seq)
                             .unwrap();
                         let mut seq = *seq;
                         let mut read = None;
@@ -147,7 +150,7 @@ impl Actor for AbdActor {
                         state.seq = seq;
                         state.val = val;
 
-                        let mut acks = HashableHashSet::default();
+                        let mut acks = BTreeSet::default();
                         acks.insert(id);
 
                         state.phase = Some(AbdPhase::Phase2 {
@@ -199,31 +202,68 @@ impl Actor for AbdActor {
 // ANCHOR_END: actor
 
 #[cfg(test)]
-#[test]
-fn is_linearizable() {
-    use stateright::{Checker, Model};
+mod test {
+    use super::*;
+    use stateright::{*, semantics::*, semantics::register::*};
 
     // ANCHOR: test
-    let checker = RegisterCfg {
-            servers: vec![
-                AbdActor { peers: model_peers(0, 2) },
-                AbdActor { peers: model_peers(1, 2) },
-            ],
-            client_count: 2,
+    #[test]
+    fn is_linearizable() {
+        AbdModelCfg { max_clock: 3 }
+            .into_model()
+            .actor(RegisterActor::Server(AbdActor {
+                peers: Id::vec_from(vec![1]),
+            }))
+            .actor(RegisterActor::Server(AbdActor {
+                peers: Id::vec_from(vec![0]),
+            }))
+            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { server_count: 2 })
+            .checker().spawn_dfs().join()
+            .assert_properties();
+    }
+
+    struct AbdModelCfg {
+        max_clock: LogicalClock,
+    }
+
+    impl AbdModelCfg {
+        fn into_model(self)
+            -> ActorModel<
+                RegisterActor<AbdActor>,
+                Self,
+                LinearizabilityTester<Id, Register<char>>>
+        {
+            ActorModel::new(
+                    self,
+                    LinearizabilityTester::new(Register('?'))
+                )
+                .duplicating_network(DuplicatingNetwork::No)
+                .property(Expectation::Always, "linearizable", |_, state| {
+                    state.history.serialized_history().is_some()
+                })
+                .property(Expectation::Sometimes, "value chosen", |_, state| {
+                    state.network.iter().any(|e| {
+                        if let RegisterMsg::GetOk(_, value) = e.msg {
+                            return value != '?';
+                        }
+                        return false
+                    })
+                })
+                .record_msg_in(RegisterMsg::record_returns)
+                .record_msg_out(RegisterMsg::record_invocations)
+                .within_boundary(|cfg, state| {
+                    state.actor_states.iter().all(|s| {
+                        if let RegisterActorState::Server(s) = &**s {
+                            s.seq.0 <= cfg.max_clock
+                        } else {
+                            true
+                        }
+                    })
+                })
         }
-        .into_model()
-        .duplicating_network(DuplicatingNetwork::No)
-        .within_boundary(|_, state| {
-            state.actor_states.iter().all(|s| {
-                if let RegisterActorState::Server(s) = &**s {
-                    s.seq.0 <= 3
-                } else {
-                    true
-                }
-            })
-        })
-        .checker().spawn_dfs().join();
-    checker.assert_properties();
+    }
     // ANCHOR_END: test
 }
 

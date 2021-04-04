@@ -7,9 +7,9 @@ use std::net::{SocketAddrV4, Ipv4Addr};
 type RequestId = u64;
 
 #[derive(Clone)]
-struct ActorContext;
+struct ServerActor;
 
-impl Actor for ActorContext {
+impl Actor for ServerActor {
     type Msg = RegisterMsg<RequestId, char, ()>;
     type State = char;
 
@@ -36,17 +36,31 @@ impl Actor for ActorContext {
 #[cfg(test)]
 mod test {
     use super::*;
-    use stateright::*;
+    use stateright::{*, semantics::*, semantics::register::*};
     use ActorModelAction::Deliver;
     use RegisterMsg::{Get, GetOk, Put, PutOk};
 
     // ANCHOR: test
     #[test]
     fn is_unfortunately_not_linearizable() {
-        let checker = RegisterCfg {
-            servers: vec![ActorContext],
-            client_count: 1,
-        }.into_model().checker().spawn_dfs().join();
+        let checker = ActorModel::new(
+                (),
+                LinearizabilityTester::new(Register('?'))
+            )
+            .actor(RegisterActor::Server(ServerActor))
+            .actor(RegisterActor::Client { server_count: 1 })
+            .property(Expectation::Always, "linearizable", |_, state| {
+                state.history.serialized_history().is_some()
+            })
+            .property(Expectation::Sometimes, "get succeeds", |_, state| {
+                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::GetOk(_, _)))
+            })
+            .property(Expectation::Sometimes, "put succeeds", |_, state| {
+                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::PutOk(_)))
+            })
+            .record_msg_in(RegisterMsg::record_returns)
+            .record_msg_out(RegisterMsg::record_invocations)
+            .checker().spawn_dfs().join();
         //checker.assert_properties(); // TRY IT: Uncomment this line, and the test will fail.
         checker.assert_discovery("linearizable", vec![
             Deliver { src: Id::from(1), dst: Id::from(0), msg: Put(1, 'A') },
@@ -68,7 +82,7 @@ fn main() {
         serde_json::to_vec,
         |bytes| serde_json::from_slice(bytes),
         vec![
-            (SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3000), ActorContext)
+            (SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3000), ServerActor)
         ]).unwrap();
 }
 // ANCHOR_END: main

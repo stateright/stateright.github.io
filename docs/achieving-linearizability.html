@@ -189,7 +189,7 @@ edition = &quot;2018&quot;
 env_logger = &quot;0.7&quot;
 serde = &quot;1.0&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.24&quot;
+stateright = &quot;0.25&quot;
 </code></pre>
 <h2><a class="header" href="#a-truly-atomic-register" id="a-truly-atomic-register">A Truly Atomic Register</a></h2>
 <p>One problem with the earlier protocol is that reads can observe different
@@ -239,13 +239,16 @@ the server can return the value that it replicated.</li>
 <h2><a class="header" href="#implementation-walkthrough" id="implementation-walkthrough">Implementation Walkthrough</a></h2>
 <p>We first define our message type. <code>Abd...</code> in the type refers to the names of
 the algorithm's original author's -- Attiya, Bar-Noy, and Dolev -- or &quot;ABD.&quot;</p>
-<pre><code class="language-rust ignore noplayground">#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+<pre><code class="language-rust ignore noplayground">type RequestId = u64;
+type Value = char;
+
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Serialize, Deserialize)]
 enum AbdMsg {
-    Query(TestRequestId),
-    AckQuery(TestRequestId, Seq, TestValue),
-    Replicate(TestRequestId, Seq, TestValue),
-    AckReplicate(TestRequestId),
+    Query(RequestId),
+    AckQuery(RequestId, Seq, Value),
+    Replicate(RequestId, Seq, Value),
+    AckReplicate(RequestId),
 }
 </code></pre>
 <p>The current implementation combines the roles of &quot;replica&quot; and &quot;coordinator
@@ -258,28 +261,28 @@ to remember what value to later return to the client, which is stored in
 <pre><code class="language-rust ignore noplayground">#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct AbdState {
     seq: Seq,
-    val: TestValue,
+    val: Value,
     phase: Option&lt;AbdPhase&gt;,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 enum AbdPhase {
     Phase1 {
-        request_id: TestRequestId,
+        request_id: RequestId,
         requester_id: Id,
-        write: Option&lt;TestValue&gt;, // `None` for read
-        responses: HashableHashMap&lt;Id, (Seq, TestValue)&gt;,
+        write: Option&lt;Value&gt;, // `None` for read
+        responses: BTreeMap&lt;Id, (Seq, Value)&gt;,
     },
     Phase2 {
-        request_id: TestRequestId,
+        request_id: RequestId,
         requester_id: Id,
-        read: Option&lt;TestValue&gt;, // `None` for write
-        acks: HashableHashSet&lt;Id&gt;,
+        read: Option&lt;Value&gt;, // `None` for write
+        acks: BTreeSet&lt;Id&gt;,
     },
 }
 
-type Seq = (WriteCount, Id); // `Id` for uniqueness
-type WriteCount = u64;
+type Seq = (LogicalClock, Id); // `Id` for uniqueness
+type LogicalClock = u64;
 </code></pre>
 <p>We are now ready to implement the protocol. Note that the implementation
 intentionally avoids decomposing the message handlers into different function
@@ -298,7 +301,7 @@ struct AbdActor {
 }
 
 impl Actor for AbdActor {
-    type Msg = RegisterMsg&lt;TestRequestId, TestValue, AbdMsg&gt;;
+    type Msg = RegisterMsg&lt;RequestId, Value, AbdMsg&gt;;
     type State = AbdState;
 
     fn on_start(&amp;self, _id: Id, _o: &amp;mut Out&lt;Self&gt;) -&gt; Self::State {
@@ -320,7 +323,7 @@ impl Actor for AbdActor {
                     requester_id: src,
                     write: Some(val),
                     responses: {
-                        let mut responses = HashableHashMap::default();
+                        let mut responses = BTreeMap::default();
                         responses.insert(id, (state.seq, state.val.clone()));
                         responses
                     },
@@ -333,7 +336,7 @@ impl Actor for AbdActor {
                     requester_id: src,
                     write: None,
                     responses: {
-                        let mut responses = HashableHashMap::default();
+                        let mut responses = BTreeMap::default();
                         responses.insert(id, (state.seq, state.val.clone()));
                         responses
                     },
@@ -363,7 +366,7 @@ impl Actor for AbdActor {
 
                         // Determine sequencer and value.
                         let (_, (seq, val)) = responses.into_iter()
-                            .max_by_key(|(_, (seq, _))| seq)
+                            .max_by_key(|(_, (seq, _))| *seq)
                             .unwrap();
                         let mut seq = *seq;
                         let mut read = None;
@@ -382,7 +385,7 @@ impl Actor for AbdActor {
                         state.seq = seq;
                         state.val = val;
 
-                        let mut acks = HashableHashSet::default();
+                        let mut acks = BTreeSet::default();
                         acks.insert(id);
 
                         state.phase = Some(AbdPhase::Phase2 {
@@ -432,75 +435,122 @@ impl Actor for AbdActor {
     }
 }
 </code></pre>
-<p>The test case confirms that this implementation is linearizable. Remember to
-run the tests with the <code>--release</code> flag if you want to check with a larger
-number of clients or servers, as the state space grows rapidly.</p>
-<pre><code class="language-rust ignore noplayground">    let checker = RegisterCfg {
-            servers: vec![
-                AbdActor { peers: model_peers(0, 2) },
-                AbdActor { peers: model_peers(1, 2) },
-            ],
-            client_count: 2,
+<p>The test case confirms that this implementation is linearizable. It also
+introduces two new aspects:</p>
+<ol>
+<li>The model contains a <code>within_boundary</code> predicate, which is used to reduce
+the number of visited states while still retaining systematic testing.</li>
+<li>The model is parameterized by a configuration type <code>AbdModelCfg</code>.</li>
+</ol>
+<p>Remember to run the tests with the <code>--release</code> flag if you want to check with a
+larger max clock or number of clients/servers as the state space
+grows rapidly.</p>
+<pre><code class="language-rust ignore noplayground">    #[test]
+    fn is_linearizable() {
+        AbdModelCfg { max_clock: 3 }
+            .into_model()
+            .actor(RegisterActor::Server(AbdActor {
+                peers: Id::vec_from(vec![1]),
+            }))
+            .actor(RegisterActor::Server(AbdActor {
+                peers: Id::vec_from(vec![0]),
+            }))
+            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { server_count: 2 })
+            .checker().spawn_dfs().join()
+            .assert_properties();
+    }
+
+    struct AbdModelCfg {
+        max_clock: LogicalClock,
+    }
+
+    impl AbdModelCfg {
+        fn into_model(self)
+            -&gt; ActorModel&lt;
+                RegisterActor&lt;AbdActor&gt;,
+                Self,
+                LinearizabilityTester&lt;Id, Register&lt;char&gt;&gt;&gt;
+        {
+            ActorModel::new(
+                    self,
+                    LinearizabilityTester::new(Register('?'))
+                )
+                .duplicating_network(DuplicatingNetwork::No)
+                .property(Expectation::Always, &quot;linearizable&quot;, |_, state| {
+                    state.history.serialized_history().is_some()
+                })
+                .property(Expectation::Sometimes, &quot;value chosen&quot;, |_, state| {
+                    state.network.iter().any(|e| {
+                        if let RegisterMsg::GetOk(_, value) = e.msg {
+                            return value != '?';
+                        }
+                        return false
+                    })
+                })
+                .record_msg_in(RegisterMsg::record_returns)
+                .record_msg_out(RegisterMsg::record_invocations)
+                .within_boundary(|cfg, state| {
+                    state.actor_states.iter().all(|s| {
+                        if let RegisterActorState::Server(s) = &amp;**s {
+                            s.seq.0 &lt;= cfg.max_clock
+                        } else {
+                            true
+                        }
+                    })
+                })
         }
-        .into_model()
-        .duplicating_network(DuplicatingNetwork::No)
-        .within_boundary(|_, state| {
-            state.actor_states.iter().all(|s| {
-                if let RegisterActorState::Server(s) = &amp;**s {
-                    s.seq.0 &lt;= 3
-                } else {
-                    true
-                }
-            })
-        })
-        .checker().spawn_dfs().join();
-    checker.assert_properties();
+    }
 </code></pre>
 <h2><a class="header" href="#complete-implementation" id="complete-implementation">Complete Implementation</a></h2>
 <p>Here is the complete implementation for <code>main.rs</code>:</p>
 <pre><code class="language-rust ignore noplayground">use serde::{Deserialize, Serialize};
 use stateright::actor::{*, register::*};
-use stateright::util::{HashableHashMap, HashableHashSet};
 use std::borrow::Cow;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::net::{SocketAddrV4, Ipv4Addr};
 
+type RequestId = u64;
+type Value = char;
+
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Serialize, Deserialize)]
 enum AbdMsg {
-    Query(TestRequestId),
-    AckQuery(TestRequestId, Seq, TestValue),
-    Replicate(TestRequestId, Seq, TestValue),
-    AckReplicate(TestRequestId),
+    Query(RequestId),
+    AckQuery(RequestId, Seq, Value),
+    Replicate(RequestId, Seq, Value),
+    AckReplicate(RequestId),
 }
 use AbdMsg::*;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct AbdState {
     seq: Seq,
-    val: TestValue,
+    val: Value,
     phase: Option&lt;AbdPhase&gt;,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 enum AbdPhase {
     Phase1 {
-        request_id: TestRequestId,
+        request_id: RequestId,
         requester_id: Id,
-        write: Option&lt;TestValue&gt;, // `None` for read
-        responses: HashableHashMap&lt;Id, (Seq, TestValue)&gt;,
+        write: Option&lt;Value&gt;, // `None` for read
+        responses: BTreeMap&lt;Id, (Seq, Value)&gt;,
     },
     Phase2 {
-        request_id: TestRequestId,
+        request_id: RequestId,
         requester_id: Id,
-        read: Option&lt;TestValue&gt;, // `None` for write
-        acks: HashableHashSet&lt;Id&gt;,
+        read: Option&lt;Value&gt;, // `None` for write
+        acks: BTreeSet&lt;Id&gt;,
     },
 }
 
-type Seq = (WriteCount, Id); // `Id` for uniqueness
-type WriteCount = u64;
+type Seq = (LogicalClock, Id); // `Id` for uniqueness
+type LogicalClock = u64;
 
 #[derive(Clone)]
 struct AbdActor {
@@ -508,7 +558,7 @@ struct AbdActor {
 }
 
 impl Actor for AbdActor {
-    type Msg = RegisterMsg&lt;TestRequestId, TestValue, AbdMsg&gt;;
+    type Msg = RegisterMsg&lt;RequestId, Value, AbdMsg&gt;;
     type State = AbdState;
 
     fn on_start(&amp;self, _id: Id, _o: &amp;mut Out&lt;Self&gt;) -&gt; Self::State {
@@ -530,7 +580,7 @@ impl Actor for AbdActor {
                     requester_id: src,
                     write: Some(val),
                     responses: {
-                        let mut responses = HashableHashMap::default();
+                        let mut responses = BTreeMap::default();
                         responses.insert(id, (state.seq, state.val.clone()));
                         responses
                     },
@@ -543,7 +593,7 @@ impl Actor for AbdActor {
                     requester_id: src,
                     write: None,
                     responses: {
-                        let mut responses = HashableHashMap::default();
+                        let mut responses = BTreeMap::default();
                         responses.insert(id, (state.seq, state.val.clone()));
                         responses
                     },
@@ -573,7 +623,7 @@ impl Actor for AbdActor {
 
                         // Determine sequencer and value.
                         let (_, (seq, val)) = responses.into_iter()
-                            .max_by_key(|(_, (seq, _))| seq)
+                            .max_by_key(|(_, (seq, _))| *seq)
                             .unwrap();
                         let mut seq = *seq;
                         let mut read = None;
@@ -592,7 +642,7 @@ impl Actor for AbdActor {
                         state.seq = seq;
                         state.val = val;
 
-                        let mut acks = HashableHashSet::default();
+                        let mut acks = BTreeSet::default();
                         acks.insert(id);
 
                         state.phase = Some(AbdPhase::Phase2 {
@@ -643,30 +693,67 @@ impl Actor for AbdActor {
 }
 
 #[cfg(test)]
-#[test]
-fn is_linearizable() {
-    use stateright::{Checker, Model};
+mod test {
+    use super::*;
+    use stateright::{*, semantics::*, semantics::register::*};
 
-    let checker = RegisterCfg {
-            servers: vec![
-                AbdActor { peers: model_peers(0, 2) },
-                AbdActor { peers: model_peers(1, 2) },
-            ],
-            client_count: 2,
+    #[test]
+    fn is_linearizable() {
+        AbdModelCfg { max_clock: 3 }
+            .into_model()
+            .actor(RegisterActor::Server(AbdActor {
+                peers: Id::vec_from(vec![1]),
+            }))
+            .actor(RegisterActor::Server(AbdActor {
+                peers: Id::vec_from(vec![0]),
+            }))
+            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { server_count: 2 })
+            .checker().spawn_dfs().join()
+            .assert_properties();
+    }
+
+    struct AbdModelCfg {
+        max_clock: LogicalClock,
+    }
+
+    impl AbdModelCfg {
+        fn into_model(self)
+            -&gt; ActorModel&lt;
+                RegisterActor&lt;AbdActor&gt;,
+                Self,
+                LinearizabilityTester&lt;Id, Register&lt;char&gt;&gt;&gt;
+        {
+            ActorModel::new(
+                    self,
+                    LinearizabilityTester::new(Register('?'))
+                )
+                .duplicating_network(DuplicatingNetwork::No)
+                .property(Expectation::Always, &quot;linearizable&quot;, |_, state| {
+                    state.history.serialized_history().is_some()
+                })
+                .property(Expectation::Sometimes, &quot;value chosen&quot;, |_, state| {
+                    state.network.iter().any(|e| {
+                        if let RegisterMsg::GetOk(_, value) = e.msg {
+                            return value != '?';
+                        }
+                        return false
+                    })
+                })
+                .record_msg_in(RegisterMsg::record_returns)
+                .record_msg_out(RegisterMsg::record_invocations)
+                .within_boundary(|cfg, state| {
+                    state.actor_states.iter().all(|s| {
+                        if let RegisterActorState::Server(s) = &amp;**s {
+                            s.seq.0 &lt;= cfg.max_clock
+                        } else {
+                            true
+                        }
+                    })
+                })
         }
-        .into_model()
-        .duplicating_network(DuplicatingNetwork::No)
-        .within_boundary(|_, state| {
-            state.actor_states.iter().all(|s| {
-                if let RegisterActorState::Server(s) = &amp;**s {
-                    s.seq.0 &lt;= 3
-                } else {
-                    true
-                }
-            })
-        })
-        .checker().spawn_dfs().join();
-    checker.assert_properties();
+    }
 }
 
 fn main() {

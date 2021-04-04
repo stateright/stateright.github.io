@@ -281,7 +281,7 @@ edition = &quot;2018&quot;
 [dependencies]
 env_logger = &quot;0.7&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.24&quot;
+stateright = &quot;0.25&quot;
 </code></pre>
 <p>Here is the complete implementation for <code>main.rs</code>. Copy-paste it into your own
 file. The subsequent sections will explain further.</p>
@@ -292,9 +292,9 @@ use std::net::{SocketAddrV4, Ipv4Addr};
 type RequestId = u64;
 
 #[derive(Clone)]
-struct ActorContext;
+struct ServerActor;
 
-impl Actor for ActorContext {
+impl Actor for ServerActor {
     type Msg = RegisterMsg&lt;RequestId, char, ()&gt;;
     type State = char;
 
@@ -320,16 +320,30 @@ impl Actor for ActorContext {
 #[cfg(test)]
 mod test {
     use super::*;
-    use stateright::*;
+    use stateright::{*, semantics::*, semantics::register::*};
     use ActorModelAction::Deliver;
     use RegisterMsg::{Get, GetOk, Put, PutOk};
 
     #[test]
     fn is_unfortunately_not_linearizable() {
-        let checker = RegisterCfg {
-            servers: vec![ActorContext],
-            client_count: 1,
-        }.into_model().checker().spawn_dfs().join();
+        let checker = ActorModel::new(
+                (),
+                LinearizabilityTester::new(Register('?'))
+            )
+            .actor(RegisterActor::Server(ServerActor))
+            .actor(RegisterActor::Client { server_count: 1 })
+            .property(Expectation::Always, &quot;linearizable&quot;, |_, state| {
+                state.history.serialized_history().is_some()
+            })
+            .property(Expectation::Sometimes, &quot;get succeeds&quot;, |_, state| {
+                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::GetOk(_, _)))
+            })
+            .property(Expectation::Sometimes, &quot;put succeeds&quot;, |_, state| {
+                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::PutOk(_)))
+            })
+            .record_msg_in(RegisterMsg::record_returns)
+            .record_msg_out(RegisterMsg::record_invocations)
+            .checker().spawn_dfs().join();
         //checker.assert_properties(); // TRY IT: Uncomment this line, and the test will fail.
         checker.assert_discovery(&quot;linearizable&quot;, vec![
             Deliver { src: Id::from(1), dst: Id::from(0), msg: Put(1, 'A') },
@@ -349,7 +363,7 @@ fn main() {
         serde_json::to_vec,
         |bytes| serde_json::from_slice(bytes),
         vec![
-            (SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3000), ActorContext)
+            (SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3000), ServerActor)
         ]).unwrap();
 }
 </code></pre>
@@ -417,9 +431,9 @@ to requests via a request ID chosen by the client.</p>
 <pre><code class="language-rust ignore noplayground">type RequestId = u64;
 
 #[derive(Clone)]
-struct ActorContext;
+struct ServerActor;
 
-impl Actor for ActorContext {
+impl Actor for ServerActor {
     type Msg = RegisterMsg&lt;RequestId, char, ()&gt;;
     type State = char;
 
@@ -472,18 +486,30 @@ important to keep in mind the question &quot;linearizable with respect to <em>wh
 In this chapter, the sequential specification is register semantics, provided
 by Stateright, but later chapters will involve other sequential specifications.</p>
 <p>The test leverages
-<a href="https://docs.rs/stateright/latest/stateright/actor/register/struct.RegisterTestSystem.html"><code>RegisterTestSystem</code></a>,
-which is built into Stateright and defines a system whereby a specified number
-of clients (only 1 in this case) write distinct values and independently read
-values without coordinating with one another. Under the hood
-<code>RegisterTestSystem</code> also leverages Stateright's built-in
-<a href="https://docs.rs/stateright/latest/stateright/semantics/struct.LinearizabilityTester.html"><code>LinearizabilityTester</code></a>.</p>
+<a href="https://docs.rs/stateright/latest/stateright/actor/register/enum.RegisterActor.html"><code>RegisterActor</code></a>,
+which is built into Stateright and defines a kind of test fixture in which
+clients (only 1 in this case) write distinct values and independently read
+values without coordinating with one another.</p>
 <pre><code class="language-rust ignore noplayground">    #[test]
     fn is_unfortunately_not_linearizable() {
-        let checker = RegisterCfg {
-            servers: vec![ActorContext],
-            client_count: 1,
-        }.into_model().checker().spawn_dfs().join();
+        let checker = ActorModel::new(
+                (),
+                LinearizabilityTester::new(Register('?'))
+            )
+            .actor(RegisterActor::Server(ServerActor))
+            .actor(RegisterActor::Client { server_count: 1 })
+            .property(Expectation::Always, &quot;linearizable&quot;, |_, state| {
+                state.history.serialized_history().is_some()
+            })
+            .property(Expectation::Sometimes, &quot;get succeeds&quot;, |_, state| {
+                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::GetOk(_, _)))
+            })
+            .property(Expectation::Sometimes, &quot;put succeeds&quot;, |_, state| {
+                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::PutOk(_)))
+            })
+            .record_msg_in(RegisterMsg::record_returns)
+            .record_msg_out(RegisterMsg::record_invocations)
+            .checker().spawn_dfs().join();
         //checker.assert_properties(); // TRY IT: Uncomment this line, and the test will fail.
         checker.assert_discovery(&quot;linearizable&quot;, vec![
             Deliver { src: Id::from(1), dst: Id::from(0), msg: Put(1, 'A') },
@@ -542,7 +568,7 @@ actor on UDP port 3000, encoding messages with the JSON format.</p>
         serde_json::to_vec,
         |bytes| serde_json::from_slice(bytes),
         vec![
-            (SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3000), ActorContext)
+            (SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3000), ServerActor)
         ]).unwrap();
 }
 </code></pre>
@@ -595,7 +621,7 @@ edition = &quot;2018&quot;
 [dependencies]
 env_logger = &quot;0.7&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.24&quot;
+stateright = &quot;0.25&quot;
 </code></pre>
 <p>Here is the complete implementation for <code>main.rs</code>, explained below:</p>
 <pre><code class="language-rust ignore noplayground">
@@ -604,10 +630,10 @@ use std::borrow::Cow;
 use std::collections::BTreeSet;
 use std::net::{SocketAddrV4, Ipv4Addr};
 
-type RequestId = u64;
-
 #[derive(Clone)]
-struct ActorContext;
+struct ServerActor;
+
+type RequestId = u64;
 
 #[derive(Clone, Debug, Hash, PartialEq)]
 struct ActorState {
@@ -615,7 +641,7 @@ struct ActorState {
     delivered: BTreeSet&lt;(Id, RequestId)&gt;,
 }
 
-impl Actor for ActorContext {
+impl Actor for ServerActor {
     type Msg = RegisterMsg&lt;RequestId, char, ()&gt;;
     type State = ActorState;
 
@@ -648,33 +674,36 @@ impl Actor for ActorContext {
 #[cfg(test)]
 mod test {
     use super::*;
-    use stateright::*;
+    use stateright::{*, semantics::*, semantics::register::*};
     use ActorModelAction::Deliver;
     use RegisterMsg::{Get, GetOk, Put, PutOk};
 
     #[test]
     fn satisfies_all_properties() {
         // Works with 1 client.
-        let checker = RegisterCfg {
-            servers: vec![ActorContext],
-            client_count: 1,
-        }.into_model().checker().spawn_dfs().join();
-        checker.assert_properties();
+        base_model()
+            .actor(RegisterActor::Server(ServerActor))
+            .actor(RegisterActor::Client { server_count: 1 })
+            .checker().spawn_dfs().join()
+            .assert_properties();
 
         // Or with multiple clients.
-        let checker = RegisterCfg {
-            servers: vec![ActorContext],
-            client_count: 2, // TIP: test with `--release` mode for more clients
-        }.into_model().checker().spawn_dfs().join();
-        checker.assert_properties();
+        // (TIP: test with `--release` mode for more clients)
+        base_model()
+            .actor(RegisterActor::Server(ServerActor))
+            .actor(RegisterActor::Client { server_count: 1 })
+            .actor(RegisterActor::Client { server_count: 1 })
+            .checker().spawn_dfs().join()
+            .assert_properties();
     }
 
     #[test]
     fn not_linearizable_with_two_servers() {
-        let checker = RegisterCfg {
-            servers: vec![ActorContext, ActorContext], // two servers
-            client_count: 1,
-        }.into_model().checker().spawn_dfs().join();
+        let checker = base_model()
+            .actor(RegisterActor::Server(ServerActor))
+            .actor(RegisterActor::Server(ServerActor))
+            .actor(RegisterActor::Client { server_count: 2 })
+            .checker().spawn_dfs().join();
         //checker.assert_properties(); // TRY IT: Uncomment this line, and the test will fail.
         checker.assert_discovery(&quot;linearizable&quot;, vec![
             Deliver { src: Id::from(2), dst: Id::from(0), msg: Put(2, 'A') },
@@ -685,6 +714,29 @@ mod test {
             Deliver { src: Id::from(0), dst: Id::from(2), msg: GetOk(6, 'A') },
         ]);
     }
+
+    fn base_model()
+        -&gt; ActorModel&lt;
+            RegisterActor&lt;ServerActor&gt;,
+            (),
+            LinearizabilityTester&lt;Id, Register&lt;char&gt;&gt;&gt;
+    {
+        ActorModel::new(
+                (),
+                LinearizabilityTester::new(Register('?'))
+            )
+            .property(Expectation::Always, &quot;linearizable&quot;, |_, state| {
+                state.history.serialized_history().is_some()
+            })
+            .property(Expectation::Sometimes, &quot;get succeeds&quot;, |_, state| {
+                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::GetOk(_, _)))
+            })
+            .property(Expectation::Sometimes, &quot;put succeeds&quot;, |_, state| {
+                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::PutOk(_)))
+            })
+            .record_msg_in(RegisterMsg::record_returns)
+            .record_msg_out(RegisterMsg::record_invocations)
+    }
 }
 
 // Running the program spawns a single actor on UDP port 3000. Messages are JSON-serialized.
@@ -694,7 +746,7 @@ fn main() {
         serde_json::to_vec,
         |bytes| serde_json::from_slice(bytes),
         vec![
-            (SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3000), ActorContext)
+            (SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3000), ServerActor)
         ]).unwrap();
 }
 
@@ -702,13 +754,15 @@ fn main() {
 <h2><a class="header" href="#implementation-walkthrough-1" id="implementation-walkthrough-1">Implementation Walkthrough</a></h2>
 <p>Addressing the linearizability issue is merely a matter of throwing away
 message redeliveries. The simplest approach is to record every delivered request ID.</p>
-<pre><code class="language-rust ignore noplayground">#[derive(Clone, Debug, Hash, PartialEq)]
+<pre><code class="language-rust ignore noplayground">type RequestId = u64;
+
+#[derive(Clone, Debug, Hash, PartialEq)]
 struct ActorState {
     value: char,
     delivered: BTreeSet&lt;(Id, RequestId)&gt;,
 }
 
-impl Actor for ActorContext {
+impl Actor for ServerActor {
     type Msg = RegisterMsg&lt;RequestId, char, ()&gt;;
     type State = ActorState;
 
@@ -750,26 +804,29 @@ generally agree upon the last value they received.</p>
 <pre><code class="language-rust ignore noplayground">    #[test]
     fn satisfies_all_properties() {
         // Works with 1 client.
-        let checker = RegisterCfg {
-            servers: vec![ActorContext],
-            client_count: 1,
-        }.into_model().checker().spawn_dfs().join();
-        checker.assert_properties();
+        base_model()
+            .actor(RegisterActor::Server(ServerActor))
+            .actor(RegisterActor::Client { server_count: 1 })
+            .checker().spawn_dfs().join()
+            .assert_properties();
 
         // Or with multiple clients.
-        let checker = RegisterCfg {
-            servers: vec![ActorContext],
-            client_count: 2, // TIP: test with `--release` mode for more clients
-        }.into_model().checker().spawn_dfs().join();
-        checker.assert_properties();
+        // (TIP: test with `--release` mode for more clients)
+        base_model()
+            .actor(RegisterActor::Server(ServerActor))
+            .actor(RegisterActor::Client { server_count: 1 })
+            .actor(RegisterActor::Client { server_count: 1 })
+            .checker().spawn_dfs().join()
+            .assert_properties();
     }
 
     #[test]
     fn not_linearizable_with_two_servers() {
-        let checker = RegisterCfg {
-            servers: vec![ActorContext, ActorContext], // two servers
-            client_count: 1,
-        }.into_model().checker().spawn_dfs().join();
+        let checker = base_model()
+            .actor(RegisterActor::Server(ServerActor))
+            .actor(RegisterActor::Server(ServerActor))
+            .actor(RegisterActor::Client { server_count: 2 })
+            .checker().spawn_dfs().join();
         //checker.assert_properties(); // TRY IT: Uncomment this line, and the test will fail.
         checker.assert_discovery(&quot;linearizable&quot;, vec![
             Deliver { src: Id::from(2), dst: Id::from(0), msg: Put(2, 'A') },
@@ -779,6 +836,30 @@ generally agree upon the last value they received.</p>
             Deliver { src: Id::from(2), dst: Id::from(0), msg: Get(6) },
             Deliver { src: Id::from(0), dst: Id::from(2), msg: GetOk(6, 'A') },
         ]);
+    }
+</code></pre>
+<p>Those two tests are supported by a helper that sets up the model.</p>
+<pre><code class="language-rust ignore noplayground">    fn base_model()
+        -&gt; ActorModel&lt;
+            RegisterActor&lt;ServerActor&gt;,
+            (),
+            LinearizabilityTester&lt;Id, Register&lt;char&gt;&gt;&gt;
+    {
+        ActorModel::new(
+                (),
+                LinearizabilityTester::new(Register('?'))
+            )
+            .property(Expectation::Always, &quot;linearizable&quot;, |_, state| {
+                state.history.serialized_history().is_some()
+            })
+            .property(Expectation::Sometimes, &quot;get succeeds&quot;, |_, state| {
+                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::GetOk(_, _)))
+            })
+            .property(Expectation::Sometimes, &quot;put succeeds&quot;, |_, state| {
+                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::PutOk(_)))
+            })
+            .record_msg_in(RegisterMsg::record_returns)
+            .record_msg_out(RegisterMsg::record_invocations)
     }
 </code></pre>
 <h2><a class="header" href="#suggested-exercises" id="suggested-exercises">Suggested Exercises</a></h2>
@@ -832,7 +913,7 @@ edition = &quot;2018&quot;
 env_logger = &quot;0.7&quot;
 serde = &quot;1.0&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.24&quot;
+stateright = &quot;0.25&quot;
 </code></pre>
 <p>By now you have the hang of implementing basic actor systems in Stateright, so
 we'll defer the full <code>main.rs</code> source code listing until later in the chapter.</p>
@@ -849,7 +930,14 @@ the value to every peer server before replying to the client, thereby ensuring
 the servers agree on the value. This might be the protocol that you envisioned
 as well.</p>
 <h2><a class="header" href="#implementation-walkthrough-2" id="implementation-walkthrough-2">Implementation Walkthrough</a></h2>
-<p>The first notable difference is the need to introduce a message type for
+<p>The first notable difference is the need to introduce actor-specific
+configuration indicating each server's peers.</p>
+<pre><code class="language-rust ignore noplayground">#[derive(Clone)]
+struct ServerActor {
+    peers: Vec&lt;Id&gt;,
+}
+</code></pre>
+<p>The next notable difference is the need to introduce a message type for
 replication.</p>
 <pre><code class="language-rust ignore noplayground">#[derive(Clone, Debug, Hash, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
@@ -896,7 +984,7 @@ struct PutState {
                     src,
                     peer_acks: Default::default(),
                 });
-                for &amp;peer_id in &amp;self.peer_ids {
+                for &amp;peer_id in &amp;self.peers {
                     o.send(peer_id,
                            RegisterMsg::Internal(
                                InternalMsg::Replicate(req_id, value)));
@@ -923,7 +1011,7 @@ struct PutState {
                     if req_id != put.req_id { return }
 
                     put.peer_acks.insert(src);
-                    if put.peer_acks == self.peer_ids {
+                    if put.peer_acks.len() == self.peers.len() {
                         o.send(put.src, RegisterMsg::PutOk(req_id));
                         state.in_flight_put = None;
                     }
@@ -939,16 +1027,38 @@ into last chapter?</p>
 Stateright identifies a sequence of steps that are not linearizable. The
 sequence is nontrivial and demonstrates why a model checker is so useful for
 implementing distributed systems.</p>
-<pre><code class="language-rust ignore noplayground">        // Fails if there are 3 clients.
-        let checker = RegisterCfg {
-            servers: vec![
-                ActorContext { peer_ids: vec![Id::from(1)].into_iter().collect() },
-                ActorContext { peer_ids: vec![Id::from(0)].into_iter().collect() },
-            ],
-            client_count: 3,
-        }.into_model().checker()
-        .spawn_dfs().join();     // TRY IT: Comment out this line, and uncomment
-        //.serve(&quot;0:3000&quot;);      //         the next to load Stateright Explorer.
+<pre><code class="language-rust ignore noplayground">    #[test]
+    fn appears_linearizable_in_limited_scenarios() {
+        // Succeeds if there are 2 clients and 2 servers.
+        base_model()
+            .actor(RegisterActor::Server(ServerActor {
+                peers: Id::vec_from(vec![1]),
+            }))
+            .actor(RegisterActor::Server(ServerActor {
+                peers: Id::vec_from(vec![0]),
+            }))
+            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { server_count: 2 })
+            .checker().spawn_dfs().join()
+            .assert_properties();
+    }
+
+    #[test]
+    fn not_generally_linearizable() {
+        // Can fail if there are 3 clients.
+        let checker = base_model()
+            .actor(RegisterActor::Server(ServerActor {
+                peers: Id::vec_from(vec![1]),
+            }))
+            .actor(RegisterActor::Server(ServerActor {
+                peers: Id::vec_from(vec![0]),
+            }))
+            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { server_count: 2 })
+            .checker()
+            .spawn_dfs().join();       // TRY IT: Comment out this line, and uncomment
+            //.serve(&quot;0:3000&quot;);        //         the next to load Stateright Explorer.
         //checker.assert_properties(); // TRY IT: Uncomment this line, and the test will fail.
         checker.assert_discovery(&quot;linearizable&quot;, vec![
             Deliver { src: Id::from(4), dst: Id::from(0), msg: Put(4, 'C') },
@@ -965,6 +1075,32 @@ implementing distributed systems.</p>
             Deliver { src: Id::from(4), dst: Id::from(1), msg: Get(8) },
             Deliver { src: Id::from(1), dst: Id::from(4), msg: GetOk(8, 'B') },
         ]);
+    }
+
+    fn base_model()
+        -&gt; ActorModel&lt;
+            RegisterActor&lt;ServerActor&gt;,
+            (),
+            LinearizabilityTester&lt;Id, Register&lt;char&gt;&gt;&gt;
+    {
+        ActorModel::new(
+                (),
+                LinearizabilityTester::new(Register('?'))
+            )
+            .property(Expectation::Always, &quot;linearizable&quot;, |_, state| {
+                state.history.serialized_history().is_some()
+            })
+            .property(Expectation::Sometimes, &quot;value chosen&quot;, |_, state| {
+                state.network.iter().any(|e| {
+                    if let RegisterMsg::GetOk(_, value) = e.msg {
+                        return value != '?';
+                    }
+                    return false
+                })
+            })
+            .record_msg_in(RegisterMsg::record_returns)
+            .record_msg_out(RegisterMsg::record_invocations)
+    }
 </code></pre>
 <h2><a class="header" href="#stateright-explorer" id="stateright-explorer">Stateright Explorer</a></h2>
 <p>It's not immediately clear why the sequence of steps identified by Stateright
@@ -1018,12 +1154,12 @@ use std::borrow::Cow;
 use std::collections::BTreeSet;
 use std::net::{SocketAddrV4, Ipv4Addr};
 
-type RequestId = u64;
-
 #[derive(Clone)]
-struct ActorContext {
-    peer_ids: BTreeSet&lt;Id&gt;,
+struct ServerActor {
+    peers: Vec&lt;Id&gt;,
 }
+
+type RequestId = u64;
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
@@ -1046,7 +1182,7 @@ struct PutState {
     peer_acks: BTreeSet&lt;Id&gt;,
 }
 
-impl Actor for ActorContext {
+impl Actor for ServerActor {
     type Msg = RegisterMsg&lt;RequestId, char, InternalMsg&gt;;
     type State = ActorState;
 
@@ -1072,7 +1208,7 @@ impl Actor for ActorContext {
                     src,
                     peer_acks: Default::default(),
                 });
-                for &amp;peer_id in &amp;self.peer_ids {
+                for &amp;peer_id in &amp;self.peers {
                     o.send(peer_id,
                            RegisterMsg::Internal(
                                InternalMsg::Replicate(req_id, value)));
@@ -1099,7 +1235,7 @@ impl Actor for ActorContext {
                     if req_id != put.req_id { return }
 
                     put.peer_acks.insert(src);
-                    if put.peer_acks == self.peer_ids {
+                    if put.peer_acks.len() == self.peers.len() {
                         o.send(put.src, RegisterMsg::PutOk(req_id));
                         state.in_flight_put = None;
                     }
@@ -1113,36 +1249,43 @@ impl Actor for ActorContext {
 #[cfg(test)]
 mod test {
     use super::*;
-    use stateright::*;
+    use stateright::{*, semantics::*, semantics::register::*};
     use ActorModelAction::Deliver;
     use InternalMsg::{Replicate, ReplicateOk};
     use RegisterMsg::{Get, GetOk, Internal, Put, PutOk};
 
     #[test]
     fn appears_linearizable_in_limited_scenarios() {
-        // Succeeds if there are 2 clients.
-        let checker = RegisterCfg {
-            servers: vec![
-                ActorContext { peer_ids: vec![Id::from(1)].into_iter().collect() },
-                ActorContext { peer_ids: vec![Id::from(0)].into_iter().collect() },
-            ],
-            client_count: 2,
-        }.into_model().checker().spawn_bfs().join();
-        checker.assert_properties();
+        // Succeeds if there are 2 clients and 2 servers.
+        base_model()
+            .actor(RegisterActor::Server(ServerActor {
+                peers: Id::vec_from(vec![1]),
+            }))
+            .actor(RegisterActor::Server(ServerActor {
+                peers: Id::vec_from(vec![0]),
+            }))
+            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { server_count: 2 })
+            .checker().spawn_dfs().join()
+            .assert_properties();
     }
 
     #[test]
     fn not_generally_linearizable() {
-        // Fails if there are 3 clients.
-        let checker = RegisterCfg {
-            servers: vec![
-                ActorContext { peer_ids: vec![Id::from(1)].into_iter().collect() },
-                ActorContext { peer_ids: vec![Id::from(0)].into_iter().collect() },
-            ],
-            client_count: 3,
-        }.into_model().checker()
-        .spawn_dfs().join();     // TRY IT: Comment out this line, and uncomment
-        //.serve(&quot;0:3000&quot;);      //         the next to load Stateright Explorer.
+        // Can fail if there are 3 clients.
+        let checker = base_model()
+            .actor(RegisterActor::Server(ServerActor {
+                peers: Id::vec_from(vec![1]),
+            }))
+            .actor(RegisterActor::Server(ServerActor {
+                peers: Id::vec_from(vec![0]),
+            }))
+            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { server_count: 2 })
+            .checker()
+            .spawn_dfs().join();       // TRY IT: Comment out this line, and uncomment
+            //.serve(&quot;0:3000&quot;);        //         the next to load Stateright Explorer.
         //checker.assert_properties(); // TRY IT: Uncomment this line, and the test will fail.
         checker.assert_discovery(&quot;linearizable&quot;, vec![
             Deliver { src: Id::from(4), dst: Id::from(0), msg: Put(4, 'C') },
@@ -1160,6 +1303,31 @@ mod test {
             Deliver { src: Id::from(1), dst: Id::from(4), msg: GetOk(8, 'B') },
         ]);
     }
+
+    fn base_model()
+        -&gt; ActorModel&lt;
+            RegisterActor&lt;ServerActor&gt;,
+            (),
+            LinearizabilityTester&lt;Id, Register&lt;char&gt;&gt;&gt;
+    {
+        ActorModel::new(
+                (),
+                LinearizabilityTester::new(Register('?'))
+            )
+            .property(Expectation::Always, &quot;linearizable&quot;, |_, state| {
+                state.history.serialized_history().is_some()
+            })
+            .property(Expectation::Sometimes, &quot;value chosen&quot;, |_, state| {
+                state.network.iter().any(|e| {
+                    if let RegisterMsg::GetOk(_, value) = e.msg {
+                        return value != '?';
+                    }
+                    return false
+                })
+            })
+            .record_msg_in(RegisterMsg::record_returns)
+            .record_msg_out(RegisterMsg::record_invocations)
+    }
 }
 
 // Running the program spawns actors on UDP ports 3000-3002. Messages are JSON-serialized.
@@ -1172,9 +1340,9 @@ fn main() {
         serde_json::to_vec,
         |bytes| serde_json::from_slice(bytes),
         vec![
-            (id0, ActorContext { peer_ids: vec![id1, id2].into_iter().collect() } ),
-            (id1, ActorContext { peer_ids: vec![id0, id2].into_iter().collect() } ),
-            (id2, ActorContext { peer_ids: vec![id0, id1].into_iter().collect() } ),
+            (id0, ServerActor { peers: vec![id1, id2].into_iter().collect() } ),
+            (id1, ServerActor { peers: vec![id0, id2].into_iter().collect() } ),
+            (id2, ServerActor { peers: vec![id0, id1].into_iter().collect() } ),
         ]).unwrap();
 }
 
@@ -1220,7 +1388,7 @@ edition = &quot;2018&quot;
 env_logger = &quot;0.7&quot;
 serde = &quot;1.0&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.24&quot;
+stateright = &quot;0.25&quot;
 </code></pre>
 <h2><a class="header" href="#a-truly-atomic-register" id="a-truly-atomic-register">A Truly Atomic Register</a></h2>
 <p>One problem with the earlier protocol is that reads can observe different
@@ -1270,13 +1438,16 @@ the server can return the value that it replicated.</li>
 <h2><a class="header" href="#implementation-walkthrough-3" id="implementation-walkthrough-3">Implementation Walkthrough</a></h2>
 <p>We first define our message type. <code>Abd...</code> in the type refers to the names of
 the algorithm's original author's -- Attiya, Bar-Noy, and Dolev -- or &quot;ABD.&quot;</p>
-<pre><code class="language-rust ignore noplayground">#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+<pre><code class="language-rust ignore noplayground">type RequestId = u64;
+type Value = char;
+
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Serialize, Deserialize)]
 enum AbdMsg {
-    Query(TestRequestId),
-    AckQuery(TestRequestId, Seq, TestValue),
-    Replicate(TestRequestId, Seq, TestValue),
-    AckReplicate(TestRequestId),
+    Query(RequestId),
+    AckQuery(RequestId, Seq, Value),
+    Replicate(RequestId, Seq, Value),
+    AckReplicate(RequestId),
 }
 </code></pre>
 <p>The current implementation combines the roles of &quot;replica&quot; and &quot;coordinator
@@ -1289,28 +1460,28 @@ to remember what value to later return to the client, which is stored in
 <pre><code class="language-rust ignore noplayground">#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct AbdState {
     seq: Seq,
-    val: TestValue,
+    val: Value,
     phase: Option&lt;AbdPhase&gt;,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 enum AbdPhase {
     Phase1 {
-        request_id: TestRequestId,
+        request_id: RequestId,
         requester_id: Id,
-        write: Option&lt;TestValue&gt;, // `None` for read
-        responses: HashableHashMap&lt;Id, (Seq, TestValue)&gt;,
+        write: Option&lt;Value&gt;, // `None` for read
+        responses: BTreeMap&lt;Id, (Seq, Value)&gt;,
     },
     Phase2 {
-        request_id: TestRequestId,
+        request_id: RequestId,
         requester_id: Id,
-        read: Option&lt;TestValue&gt;, // `None` for write
-        acks: HashableHashSet&lt;Id&gt;,
+        read: Option&lt;Value&gt;, // `None` for write
+        acks: BTreeSet&lt;Id&gt;,
     },
 }
 
-type Seq = (WriteCount, Id); // `Id` for uniqueness
-type WriteCount = u64;
+type Seq = (LogicalClock, Id); // `Id` for uniqueness
+type LogicalClock = u64;
 </code></pre>
 <p>We are now ready to implement the protocol. Note that the implementation
 intentionally avoids decomposing the message handlers into different function
@@ -1329,7 +1500,7 @@ struct AbdActor {
 }
 
 impl Actor for AbdActor {
-    type Msg = RegisterMsg&lt;TestRequestId, TestValue, AbdMsg&gt;;
+    type Msg = RegisterMsg&lt;RequestId, Value, AbdMsg&gt;;
     type State = AbdState;
 
     fn on_start(&amp;self, _id: Id, _o: &amp;mut Out&lt;Self&gt;) -&gt; Self::State {
@@ -1351,7 +1522,7 @@ impl Actor for AbdActor {
                     requester_id: src,
                     write: Some(val),
                     responses: {
-                        let mut responses = HashableHashMap::default();
+                        let mut responses = BTreeMap::default();
                         responses.insert(id, (state.seq, state.val.clone()));
                         responses
                     },
@@ -1364,7 +1535,7 @@ impl Actor for AbdActor {
                     requester_id: src,
                     write: None,
                     responses: {
-                        let mut responses = HashableHashMap::default();
+                        let mut responses = BTreeMap::default();
                         responses.insert(id, (state.seq, state.val.clone()));
                         responses
                     },
@@ -1394,7 +1565,7 @@ impl Actor for AbdActor {
 
                         // Determine sequencer and value.
                         let (_, (seq, val)) = responses.into_iter()
-                            .max_by_key(|(_, (seq, _))| seq)
+                            .max_by_key(|(_, (seq, _))| *seq)
                             .unwrap();
                         let mut seq = *seq;
                         let mut read = None;
@@ -1413,7 +1584,7 @@ impl Actor for AbdActor {
                         state.seq = seq;
                         state.val = val;
 
-                        let mut acks = HashableHashSet::default();
+                        let mut acks = BTreeSet::default();
                         acks.insert(id);
 
                         state.phase = Some(AbdPhase::Phase2 {
@@ -1463,75 +1634,122 @@ impl Actor for AbdActor {
     }
 }
 </code></pre>
-<p>The test case confirms that this implementation is linearizable. Remember to
-run the tests with the <code>--release</code> flag if you want to check with a larger
-number of clients or servers, as the state space grows rapidly.</p>
-<pre><code class="language-rust ignore noplayground">    let checker = RegisterCfg {
-            servers: vec![
-                AbdActor { peers: model_peers(0, 2) },
-                AbdActor { peers: model_peers(1, 2) },
-            ],
-            client_count: 2,
+<p>The test case confirms that this implementation is linearizable. It also
+introduces two new aspects:</p>
+<ol>
+<li>The model contains a <code>within_boundary</code> predicate, which is used to reduce
+the number of visited states while still retaining systematic testing.</li>
+<li>The model is parameterized by a configuration type <code>AbdModelCfg</code>.</li>
+</ol>
+<p>Remember to run the tests with the <code>--release</code> flag if you want to check with a
+larger max clock or number of clients/servers as the state space
+grows rapidly.</p>
+<pre><code class="language-rust ignore noplayground">    #[test]
+    fn is_linearizable() {
+        AbdModelCfg { max_clock: 3 }
+            .into_model()
+            .actor(RegisterActor::Server(AbdActor {
+                peers: Id::vec_from(vec![1]),
+            }))
+            .actor(RegisterActor::Server(AbdActor {
+                peers: Id::vec_from(vec![0]),
+            }))
+            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { server_count: 2 })
+            .checker().spawn_dfs().join()
+            .assert_properties();
+    }
+
+    struct AbdModelCfg {
+        max_clock: LogicalClock,
+    }
+
+    impl AbdModelCfg {
+        fn into_model(self)
+            -&gt; ActorModel&lt;
+                RegisterActor&lt;AbdActor&gt;,
+                Self,
+                LinearizabilityTester&lt;Id, Register&lt;char&gt;&gt;&gt;
+        {
+            ActorModel::new(
+                    self,
+                    LinearizabilityTester::new(Register('?'))
+                )
+                .duplicating_network(DuplicatingNetwork::No)
+                .property(Expectation::Always, &quot;linearizable&quot;, |_, state| {
+                    state.history.serialized_history().is_some()
+                })
+                .property(Expectation::Sometimes, &quot;value chosen&quot;, |_, state| {
+                    state.network.iter().any(|e| {
+                        if let RegisterMsg::GetOk(_, value) = e.msg {
+                            return value != '?';
+                        }
+                        return false
+                    })
+                })
+                .record_msg_in(RegisterMsg::record_returns)
+                .record_msg_out(RegisterMsg::record_invocations)
+                .within_boundary(|cfg, state| {
+                    state.actor_states.iter().all(|s| {
+                        if let RegisterActorState::Server(s) = &amp;**s {
+                            s.seq.0 &lt;= cfg.max_clock
+                        } else {
+                            true
+                        }
+                    })
+                })
         }
-        .into_model()
-        .duplicating_network(DuplicatingNetwork::No)
-        .within_boundary(|_, state| {
-            state.actor_states.iter().all(|s| {
-                if let RegisterActorState::Server(s) = &amp;**s {
-                    s.seq.0 &lt;= 3
-                } else {
-                    true
-                }
-            })
-        })
-        .checker().spawn_dfs().join();
-    checker.assert_properties();
+    }
 </code></pre>
 <h2><a class="header" href="#complete-implementation-1" id="complete-implementation-1">Complete Implementation</a></h2>
 <p>Here is the complete implementation for <code>main.rs</code>:</p>
 <pre><code class="language-rust ignore noplayground">use serde::{Deserialize, Serialize};
 use stateright::actor::{*, register::*};
-use stateright::util::{HashableHashMap, HashableHashSet};
 use std::borrow::Cow;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::net::{SocketAddrV4, Ipv4Addr};
 
+type RequestId = u64;
+type Value = char;
+
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Serialize, Deserialize)]
 enum AbdMsg {
-    Query(TestRequestId),
-    AckQuery(TestRequestId, Seq, TestValue),
-    Replicate(TestRequestId, Seq, TestValue),
-    AckReplicate(TestRequestId),
+    Query(RequestId),
+    AckQuery(RequestId, Seq, Value),
+    Replicate(RequestId, Seq, Value),
+    AckReplicate(RequestId),
 }
 use AbdMsg::*;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct AbdState {
     seq: Seq,
-    val: TestValue,
+    val: Value,
     phase: Option&lt;AbdPhase&gt;,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 enum AbdPhase {
     Phase1 {
-        request_id: TestRequestId,
+        request_id: RequestId,
         requester_id: Id,
-        write: Option&lt;TestValue&gt;, // `None` for read
-        responses: HashableHashMap&lt;Id, (Seq, TestValue)&gt;,
+        write: Option&lt;Value&gt;, // `None` for read
+        responses: BTreeMap&lt;Id, (Seq, Value)&gt;,
     },
     Phase2 {
-        request_id: TestRequestId,
+        request_id: RequestId,
         requester_id: Id,
-        read: Option&lt;TestValue&gt;, // `None` for write
-        acks: HashableHashSet&lt;Id&gt;,
+        read: Option&lt;Value&gt;, // `None` for write
+        acks: BTreeSet&lt;Id&gt;,
     },
 }
 
-type Seq = (WriteCount, Id); // `Id` for uniqueness
-type WriteCount = u64;
+type Seq = (LogicalClock, Id); // `Id` for uniqueness
+type LogicalClock = u64;
 
 #[derive(Clone)]
 struct AbdActor {
@@ -1539,7 +1757,7 @@ struct AbdActor {
 }
 
 impl Actor for AbdActor {
-    type Msg = RegisterMsg&lt;TestRequestId, TestValue, AbdMsg&gt;;
+    type Msg = RegisterMsg&lt;RequestId, Value, AbdMsg&gt;;
     type State = AbdState;
 
     fn on_start(&amp;self, _id: Id, _o: &amp;mut Out&lt;Self&gt;) -&gt; Self::State {
@@ -1561,7 +1779,7 @@ impl Actor for AbdActor {
                     requester_id: src,
                     write: Some(val),
                     responses: {
-                        let mut responses = HashableHashMap::default();
+                        let mut responses = BTreeMap::default();
                         responses.insert(id, (state.seq, state.val.clone()));
                         responses
                     },
@@ -1574,7 +1792,7 @@ impl Actor for AbdActor {
                     requester_id: src,
                     write: None,
                     responses: {
-                        let mut responses = HashableHashMap::default();
+                        let mut responses = BTreeMap::default();
                         responses.insert(id, (state.seq, state.val.clone()));
                         responses
                     },
@@ -1604,7 +1822,7 @@ impl Actor for AbdActor {
 
                         // Determine sequencer and value.
                         let (_, (seq, val)) = responses.into_iter()
-                            .max_by_key(|(_, (seq, _))| seq)
+                            .max_by_key(|(_, (seq, _))| *seq)
                             .unwrap();
                         let mut seq = *seq;
                         let mut read = None;
@@ -1623,7 +1841,7 @@ impl Actor for AbdActor {
                         state.seq = seq;
                         state.val = val;
 
-                        let mut acks = HashableHashSet::default();
+                        let mut acks = BTreeSet::default();
                         acks.insert(id);
 
                         state.phase = Some(AbdPhase::Phase2 {
@@ -1674,30 +1892,67 @@ impl Actor for AbdActor {
 }
 
 #[cfg(test)]
-#[test]
-fn is_linearizable() {
-    use stateright::{Checker, Model};
+mod test {
+    use super::*;
+    use stateright::{*, semantics::*, semantics::register::*};
 
-    let checker = RegisterCfg {
-            servers: vec![
-                AbdActor { peers: model_peers(0, 2) },
-                AbdActor { peers: model_peers(1, 2) },
-            ],
-            client_count: 2,
+    #[test]
+    fn is_linearizable() {
+        AbdModelCfg { max_clock: 3 }
+            .into_model()
+            .actor(RegisterActor::Server(AbdActor {
+                peers: Id::vec_from(vec![1]),
+            }))
+            .actor(RegisterActor::Server(AbdActor {
+                peers: Id::vec_from(vec![0]),
+            }))
+            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { server_count: 2 })
+            .checker().spawn_dfs().join()
+            .assert_properties();
+    }
+
+    struct AbdModelCfg {
+        max_clock: LogicalClock,
+    }
+
+    impl AbdModelCfg {
+        fn into_model(self)
+            -&gt; ActorModel&lt;
+                RegisterActor&lt;AbdActor&gt;,
+                Self,
+                LinearizabilityTester&lt;Id, Register&lt;char&gt;&gt;&gt;
+        {
+            ActorModel::new(
+                    self,
+                    LinearizabilityTester::new(Register('?'))
+                )
+                .duplicating_network(DuplicatingNetwork::No)
+                .property(Expectation::Always, &quot;linearizable&quot;, |_, state| {
+                    state.history.serialized_history().is_some()
+                })
+                .property(Expectation::Sometimes, &quot;value chosen&quot;, |_, state| {
+                    state.network.iter().any(|e| {
+                        if let RegisterMsg::GetOk(_, value) = e.msg {
+                            return value != '?';
+                        }
+                        return false
+                    })
+                })
+                .record_msg_in(RegisterMsg::record_returns)
+                .record_msg_out(RegisterMsg::record_invocations)
+                .within_boundary(|cfg, state| {
+                    state.actor_states.iter().all(|s| {
+                        if let RegisterActorState::Server(s) = &amp;**s {
+                            s.seq.0 &lt;= cfg.max_clock
+                        } else {
+                            true
+                        }
+                    })
+                })
         }
-        .into_model()
-        .duplicating_network(DuplicatingNetwork::No)
-        .within_boundary(|_, state| {
-            state.actor_states.iter().all(|s| {
-                if let RegisterActorState::Server(s) = &amp;**s {
-                    s.seq.0 &lt;= 3
-                } else {
-                    true
-                }
-            })
-        })
-        .checker().spawn_dfs().join();
-    checker.assert_properties();
+    }
 }
 
 fn main() {
@@ -2128,7 +2383,7 @@ edition = &quot;2018&quot;
 
 [dependencies]
 num_cpus = &quot;1&quot;
-stateright = &quot;0.24&quot;
+stateright = &quot;0.25&quot;
 </code></pre>
 </td></tr></table>
 <p>TLA+ can be run from the command line using a tool such as

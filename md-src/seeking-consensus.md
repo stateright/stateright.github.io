@@ -43,7 +43,14 @@ as well.
 
 ## Implementation Walkthrough
 
-The first notable difference is the need to introduce a message type for
+The first notable difference is the need to introduce actor-specific
+configuration indicating each server's peers.
+
+```rust,ignore,noplayground
+{{#include ../rs-src/seeking-consensus/src/main.rs:actor}}
+```
+
+The next notable difference is the need to introduce a message type for
 replication.
 
 ```rust,ignore,noplayground
@@ -65,7 +72,7 @@ Stateright actors are nonblocking, so they must manage some additional state:
 We are now ready to implement the protocol.
 
 ```rust,ignore,noplayground
-{{#include ../rs-src/seeking-consensus/src/main.rs:actor}}
+{{#include ../rs-src/seeking-consensus/src/main.rs:actor-msg-handler}}
 ```
 
 Now the big question: does this protocol solve the problem we ran

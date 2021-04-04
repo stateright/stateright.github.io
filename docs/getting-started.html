@@ -230,7 +230,7 @@ edition = &quot;2018&quot;
 [dependencies]
 env_logger = &quot;0.7&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.24&quot;
+stateright = &quot;0.25&quot;
 </code></pre>
 <p>Here is the complete implementation for <code>main.rs</code>. Copy-paste it into your own
 file. The subsequent sections will explain further.</p>
@@ -241,9 +241,9 @@ use std::net::{SocketAddrV4, Ipv4Addr};
 type RequestId = u64;
 
 #[derive(Clone)]
-struct ActorContext;
+struct ServerActor;
 
-impl Actor for ActorContext {
+impl Actor for ServerActor {
     type Msg = RegisterMsg&lt;RequestId, char, ()&gt;;
     type State = char;
 
@@ -269,16 +269,30 @@ impl Actor for ActorContext {
 #[cfg(test)]
 mod test {
     use super::*;
-    use stateright::*;
+    use stateright::{*, semantics::*, semantics::register::*};
     use ActorModelAction::Deliver;
     use RegisterMsg::{Get, GetOk, Put, PutOk};
 
     #[test]
     fn is_unfortunately_not_linearizable() {
-        let checker = RegisterCfg {
-            servers: vec![ActorContext],
-            client_count: 1,
-        }.into_model().checker().spawn_dfs().join();
+        let checker = ActorModel::new(
+                (),
+                LinearizabilityTester::new(Register('?'))
+            )
+            .actor(RegisterActor::Server(ServerActor))
+            .actor(RegisterActor::Client { server_count: 1 })
+            .property(Expectation::Always, &quot;linearizable&quot;, |_, state| {
+                state.history.serialized_history().is_some()
+            })
+            .property(Expectation::Sometimes, &quot;get succeeds&quot;, |_, state| {
+                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::GetOk(_, _)))
+            })
+            .property(Expectation::Sometimes, &quot;put succeeds&quot;, |_, state| {
+                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::PutOk(_)))
+            })
+            .record_msg_in(RegisterMsg::record_returns)
+            .record_msg_out(RegisterMsg::record_invocations)
+            .checker().spawn_dfs().join();
         //checker.assert_properties(); // TRY IT: Uncomment this line, and the test will fail.
         checker.assert_discovery(&quot;linearizable&quot;, vec![
             Deliver { src: Id::from(1), dst: Id::from(0), msg: Put(1, 'A') },
@@ -298,7 +312,7 @@ fn main() {
         serde_json::to_vec,
         |bytes| serde_json::from_slice(bytes),
         vec![
-            (SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3000), ActorContext)
+            (SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3000), ServerActor)
         ]).unwrap();
 }
 </code></pre>
@@ -366,9 +380,9 @@ to requests via a request ID chosen by the client.</p>
 <pre><code class="language-rust ignore noplayground">type RequestId = u64;
 
 #[derive(Clone)]
-struct ActorContext;
+struct ServerActor;
 
-impl Actor for ActorContext {
+impl Actor for ServerActor {
     type Msg = RegisterMsg&lt;RequestId, char, ()&gt;;
     type State = char;
 
@@ -421,18 +435,30 @@ important to keep in mind the question &quot;linearizable with respect to <em>wh
 In this chapter, the sequential specification is register semantics, provided
 by Stateright, but later chapters will involve other sequential specifications.</p>
 <p>The test leverages
-<a href="https://docs.rs/stateright/latest/stateright/actor/register/struct.RegisterTestSystem.html"><code>RegisterTestSystem</code></a>,
-which is built into Stateright and defines a system whereby a specified number
-of clients (only 1 in this case) write distinct values and independently read
-values without coordinating with one another. Under the hood
-<code>RegisterTestSystem</code> also leverages Stateright's built-in
-<a href="https://docs.rs/stateright/latest/stateright/semantics/struct.LinearizabilityTester.html"><code>LinearizabilityTester</code></a>.</p>
+<a href="https://docs.rs/stateright/latest/stateright/actor/register/enum.RegisterActor.html"><code>RegisterActor</code></a>,
+which is built into Stateright and defines a kind of test fixture in which
+clients (only 1 in this case) write distinct values and independently read
+values without coordinating with one another.</p>
 <pre><code class="language-rust ignore noplayground">    #[test]
     fn is_unfortunately_not_linearizable() {
-        let checker = RegisterCfg {
-            servers: vec![ActorContext],
-            client_count: 1,
-        }.into_model().checker().spawn_dfs().join();
+        let checker = ActorModel::new(
+                (),
+                LinearizabilityTester::new(Register('?'))
+            )
+            .actor(RegisterActor::Server(ServerActor))
+            .actor(RegisterActor::Client { server_count: 1 })
+            .property(Expectation::Always, &quot;linearizable&quot;, |_, state| {
+                state.history.serialized_history().is_some()
+            })
+            .property(Expectation::Sometimes, &quot;get succeeds&quot;, |_, state| {
+                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::GetOk(_, _)))
+            })
+            .property(Expectation::Sometimes, &quot;put succeeds&quot;, |_, state| {
+                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::PutOk(_)))
+            })
+            .record_msg_in(RegisterMsg::record_returns)
+            .record_msg_out(RegisterMsg::record_invocations)
+            .checker().spawn_dfs().join();
         //checker.assert_properties(); // TRY IT: Uncomment this line, and the test will fail.
         checker.assert_discovery(&quot;linearizable&quot;, vec![
             Deliver { src: Id::from(1), dst: Id::from(0), msg: Put(1, 'A') },
@@ -491,7 +517,7 @@ actor on UDP port 3000, encoding messages with the JSON format.</p>
         serde_json::to_vec,
         |bytes| serde_json::from_slice(bytes),
         vec![
-            (SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3000), ActorContext)
+            (SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3000), ServerActor)
         ]).unwrap();
 }
 </code></pre>

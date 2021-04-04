@@ -109,9 +109,16 @@ to compose a system of different actor types.
 {{#include ../rs-src/achieving-linearizability/src/main.rs:actor}}
 ```
 
-The test case confirms that this implementation is linearizable. Remember to
-run the tests with the `--release` flag if you want to check with a larger
-number of clients or servers, as the state space grows rapidly.
+The test case confirms that this implementation is linearizable. It also
+introduces two new aspects:
+
+1. The model contains a `within_boundary` predicate, which is used to reduce
+   the number of visited states while still retaining systematic testing.
+2. The model is parameterized by a configuration type `AbdModelCfg`.
+
+Remember to run the tests with the `--release` flag if you want to check with a
+larger max clock or number of clients/servers as the state space
+grows rapidly.
 
 ```rust,ignore,noplayground
 {{#include ../rs-src/achieving-linearizability/src/main.rs:test}}

@@ -5,19 +5,19 @@ use std::borrow::Cow;
 use std::collections::BTreeSet;
 use std::net::{SocketAddrV4, Ipv4Addr};
 
-type RequestId = u64;
-
 #[derive(Clone)]
-struct ActorContext;
+struct ServerActor;
 
 // ANCHOR: actor
+type RequestId = u64;
+
 #[derive(Clone, Debug, Hash, PartialEq)]
 struct ActorState {
     value: char,
     delivered: BTreeSet<(Id, RequestId)>,
 }
 
-impl Actor for ActorContext {
+impl Actor for ServerActor {
     type Msg = RegisterMsg<RequestId, char, ()>;
     type State = ActorState;
 
@@ -51,7 +51,7 @@ impl Actor for ActorContext {
 #[cfg(test)]
 mod test {
     use super::*;
-    use stateright::*;
+    use stateright::{*, semantics::*, semantics::register::*};
     use ActorModelAction::Deliver;
     use RegisterMsg::{Get, GetOk, Put, PutOk};
 
@@ -59,26 +59,29 @@ mod test {
     #[test]
     fn satisfies_all_properties() {
         // Works with 1 client.
-        let checker = RegisterCfg {
-            servers: vec![ActorContext],
-            client_count: 1,
-        }.into_model().checker().spawn_dfs().join();
-        checker.assert_properties();
+        base_model()
+            .actor(RegisterActor::Server(ServerActor))
+            .actor(RegisterActor::Client { server_count: 1 })
+            .checker().spawn_dfs().join()
+            .assert_properties();
 
         // Or with multiple clients.
-        let checker = RegisterCfg {
-            servers: vec![ActorContext],
-            client_count: 2, // TIP: test with `--release` mode for more clients
-        }.into_model().checker().spawn_dfs().join();
-        checker.assert_properties();
+        // (TIP: test with `--release` mode for more clients)
+        base_model()
+            .actor(RegisterActor::Server(ServerActor))
+            .actor(RegisterActor::Client { server_count: 1 })
+            .actor(RegisterActor::Client { server_count: 1 })
+            .checker().spawn_dfs().join()
+            .assert_properties();
     }
 
     #[test]
     fn not_linearizable_with_two_servers() {
-        let checker = RegisterCfg {
-            servers: vec![ActorContext, ActorContext], // two servers
-            client_count: 1,
-        }.into_model().checker().spawn_dfs().join();
+        let checker = base_model()
+            .actor(RegisterActor::Server(ServerActor))
+            .actor(RegisterActor::Server(ServerActor))
+            .actor(RegisterActor::Client { server_count: 2 })
+            .checker().spawn_dfs().join();
         //checker.assert_properties(); // TRY IT: Uncomment this line, and the test will fail.
         checker.assert_discovery("linearizable", vec![
             Deliver { src: Id::from(2), dst: Id::from(0), msg: Put(2, 'A') },
@@ -90,6 +93,31 @@ mod test {
         ]);
     }
     // ANCHOR_END: test
+
+    // ANCHOR: test-model-fn
+    fn base_model()
+        -> ActorModel<
+            RegisterActor<ServerActor>,
+            (),
+            LinearizabilityTester<Id, Register<char>>>
+    {
+        ActorModel::new(
+                (),
+                LinearizabilityTester::new(Register('?'))
+            )
+            .property(Expectation::Always, "linearizable", |_, state| {
+                state.history.serialized_history().is_some()
+            })
+            .property(Expectation::Sometimes, "get succeeds", |_, state| {
+                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::GetOk(_, _)))
+            })
+            .property(Expectation::Sometimes, "put succeeds", |_, state| {
+                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::PutOk(_)))
+            })
+            .record_msg_in(RegisterMsg::record_returns)
+            .record_msg_out(RegisterMsg::record_invocations)
+    }
+    // ANCHOR_END: test-model-fn
 }
 
 // Running the program spawns a single actor on UDP port 3000. Messages are JSON-serialized.
@@ -99,7 +127,7 @@ fn main() {
         serde_json::to_vec,
         |bytes| serde_json::from_slice(bytes),
         vec![
-            (SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3000), ActorContext)
+            (SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3000), ServerActor)
         ]).unwrap();
 }
 
