@@ -190,7 +190,7 @@ edition = &quot;2018&quot;
 env_logger = &quot;0.7&quot;
 serde = &quot;1.0&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.25&quot;
+stateright = &quot;0.26&quot;
 </code></pre>
 <p>By now you have the hang of implementing basic actor systems in Stateright, so
 we'll defer the full <code>main.rs</code> source code listing until later in the chapter.</p>
@@ -314,8 +314,8 @@ implementing distributed systems.</p>
             .actor(RegisterActor::Server(ServerActor {
                 peers: Id::vec_from(vec![0]),
             }))
-            .actor(RegisterActor::Client { server_count: 2 })
-            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
             .checker().spawn_dfs().join()
             .assert_properties();
     }
@@ -330,9 +330,9 @@ implementing distributed systems.</p>
             .actor(RegisterActor::Server(ServerActor {
                 peers: Id::vec_from(vec![0]),
             }))
-            .actor(RegisterActor::Client { server_count: 2 })
-            .actor(RegisterActor::Client { server_count: 2 })
-            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
             .checker()
             .spawn_dfs().join();       // TRY IT: Comment out this line, and uncomment
             //.serve(&quot;0:3000&quot;);        //         the next to load Stateright Explorer.
@@ -541,8 +541,8 @@ mod test {
             .actor(RegisterActor::Server(ServerActor {
                 peers: Id::vec_from(vec![0]),
             }))
-            .actor(RegisterActor::Client { server_count: 2 })
-            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
             .checker().spawn_dfs().join()
             .assert_properties();
     }
@@ -557,9 +557,9 @@ mod test {
             .actor(RegisterActor::Server(ServerActor {
                 peers: Id::vec_from(vec![0]),
             }))
-            .actor(RegisterActor::Client { server_count: 2 })
-            .actor(RegisterActor::Client { server_count: 2 })
-            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
             .checker()
             .spawn_dfs().join();       // TRY IT: Comment out this line, and uncomment
             //.serve(&quot;0:3000&quot;);        //         the next to load Stateright Explorer.

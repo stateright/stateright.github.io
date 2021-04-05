@@ -61,7 +61,7 @@ mod test {
         // Works with 1 client.
         base_model()
             .actor(RegisterActor::Server(ServerActor))
-            .actor(RegisterActor::Client { server_count: 1 })
+            .actor(RegisterActor::Client { put_count: 2, server_count: 1 })
             .checker().spawn_dfs().join()
             .assert_properties();
 
@@ -69,8 +69,8 @@ mod test {
         // (TIP: test with `--release` mode for more clients)
         base_model()
             .actor(RegisterActor::Server(ServerActor))
-            .actor(RegisterActor::Client { server_count: 1 })
-            .actor(RegisterActor::Client { server_count: 1 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 1 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 1 })
             .checker().spawn_dfs().join()
             .assert_properties();
     }
@@ -80,7 +80,7 @@ mod test {
         let checker = base_model()
             .actor(RegisterActor::Server(ServerActor))
             .actor(RegisterActor::Server(ServerActor))
-            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 2, server_count: 2 })
             .checker().spawn_dfs().join();
         //checker.assert_properties(); // TRY IT: Uncomment this line, and the test will fail.
         checker.assert_discovery("linearizable", vec![

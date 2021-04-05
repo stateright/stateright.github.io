@@ -230,7 +230,7 @@ edition = &quot;2018&quot;
 [dependencies]
 env_logger = &quot;0.7&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.25&quot;
+stateright = &quot;0.26&quot;
 </code></pre>
 <p>Here is the complete implementation for <code>main.rs</code>. Copy-paste it into your own
 file. The subsequent sections will explain further.</p>
@@ -280,7 +280,7 @@ mod test {
                 LinearizabilityTester::new(Register('?'))
             )
             .actor(RegisterActor::Server(ServerActor))
-            .actor(RegisterActor::Client { server_count: 1 })
+            .actor(RegisterActor::Client { put_count: 2, server_count: 1 })
             .property(Expectation::Always, &quot;linearizable&quot;, |_, state| {
                 state.history.serialized_history().is_some()
             })
@@ -446,7 +446,7 @@ values without coordinating with one another.</p>
                 LinearizabilityTester::new(Register('?'))
             )
             .actor(RegisterActor::Server(ServerActor))
-            .actor(RegisterActor::Client { server_count: 1 })
+            .actor(RegisterActor::Client { put_count: 2, server_count: 1 })
             .property(Expectation::Always, &quot;linearizable&quot;, |_, state| {
                 state.history.serialized_history().is_some()
             })

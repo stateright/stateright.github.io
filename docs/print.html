@@ -281,7 +281,7 @@ edition = &quot;2018&quot;
 [dependencies]
 env_logger = &quot;0.7&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.25&quot;
+stateright = &quot;0.26&quot;
 </code></pre>
 <p>Here is the complete implementation for <code>main.rs</code>. Copy-paste it into your own
 file. The subsequent sections will explain further.</p>
@@ -331,7 +331,7 @@ mod test {
                 LinearizabilityTester::new(Register('?'))
             )
             .actor(RegisterActor::Server(ServerActor))
-            .actor(RegisterActor::Client { server_count: 1 })
+            .actor(RegisterActor::Client { put_count: 2, server_count: 1 })
             .property(Expectation::Always, &quot;linearizable&quot;, |_, state| {
                 state.history.serialized_history().is_some()
             })
@@ -497,7 +497,7 @@ values without coordinating with one another.</p>
                 LinearizabilityTester::new(Register('?'))
             )
             .actor(RegisterActor::Server(ServerActor))
-            .actor(RegisterActor::Client { server_count: 1 })
+            .actor(RegisterActor::Client { put_count: 2, server_count: 1 })
             .property(Expectation::Always, &quot;linearizable&quot;, |_, state| {
                 state.history.serialized_history().is_some()
             })
@@ -621,7 +621,7 @@ edition = &quot;2018&quot;
 [dependencies]
 env_logger = &quot;0.7&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.25&quot;
+stateright = &quot;0.26&quot;
 </code></pre>
 <p>Here is the complete implementation for <code>main.rs</code>, explained below:</p>
 <pre><code class="language-rust ignore noplayground">
@@ -683,7 +683,7 @@ mod test {
         // Works with 1 client.
         base_model()
             .actor(RegisterActor::Server(ServerActor))
-            .actor(RegisterActor::Client { server_count: 1 })
+            .actor(RegisterActor::Client { put_count: 2, server_count: 1 })
             .checker().spawn_dfs().join()
             .assert_properties();
 
@@ -691,8 +691,8 @@ mod test {
         // (TIP: test with `--release` mode for more clients)
         base_model()
             .actor(RegisterActor::Server(ServerActor))
-            .actor(RegisterActor::Client { server_count: 1 })
-            .actor(RegisterActor::Client { server_count: 1 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 1 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 1 })
             .checker().spawn_dfs().join()
             .assert_properties();
     }
@@ -702,7 +702,7 @@ mod test {
         let checker = base_model()
             .actor(RegisterActor::Server(ServerActor))
             .actor(RegisterActor::Server(ServerActor))
-            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 2, server_count: 2 })
             .checker().spawn_dfs().join();
         //checker.assert_properties(); // TRY IT: Uncomment this line, and the test will fail.
         checker.assert_discovery(&quot;linearizable&quot;, vec![
@@ -806,7 +806,7 @@ generally agree upon the last value they received.</p>
         // Works with 1 client.
         base_model()
             .actor(RegisterActor::Server(ServerActor))
-            .actor(RegisterActor::Client { server_count: 1 })
+            .actor(RegisterActor::Client { put_count: 2, server_count: 1 })
             .checker().spawn_dfs().join()
             .assert_properties();
 
@@ -814,8 +814,8 @@ generally agree upon the last value they received.</p>
         // (TIP: test with `--release` mode for more clients)
         base_model()
             .actor(RegisterActor::Server(ServerActor))
-            .actor(RegisterActor::Client { server_count: 1 })
-            .actor(RegisterActor::Client { server_count: 1 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 1 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 1 })
             .checker().spawn_dfs().join()
             .assert_properties();
     }
@@ -825,7 +825,7 @@ generally agree upon the last value they received.</p>
         let checker = base_model()
             .actor(RegisterActor::Server(ServerActor))
             .actor(RegisterActor::Server(ServerActor))
-            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 2, server_count: 2 })
             .checker().spawn_dfs().join();
         //checker.assert_properties(); // TRY IT: Uncomment this line, and the test will fail.
         checker.assert_discovery(&quot;linearizable&quot;, vec![
@@ -913,7 +913,7 @@ edition = &quot;2018&quot;
 env_logger = &quot;0.7&quot;
 serde = &quot;1.0&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.25&quot;
+stateright = &quot;0.26&quot;
 </code></pre>
 <p>By now you have the hang of implementing basic actor systems in Stateright, so
 we'll defer the full <code>main.rs</code> source code listing until later in the chapter.</p>
@@ -1037,8 +1037,8 @@ implementing distributed systems.</p>
             .actor(RegisterActor::Server(ServerActor {
                 peers: Id::vec_from(vec![0]),
             }))
-            .actor(RegisterActor::Client { server_count: 2 })
-            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
             .checker().spawn_dfs().join()
             .assert_properties();
     }
@@ -1053,9 +1053,9 @@ implementing distributed systems.</p>
             .actor(RegisterActor::Server(ServerActor {
                 peers: Id::vec_from(vec![0]),
             }))
-            .actor(RegisterActor::Client { server_count: 2 })
-            .actor(RegisterActor::Client { server_count: 2 })
-            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
             .checker()
             .spawn_dfs().join();       // TRY IT: Comment out this line, and uncomment
             //.serve(&quot;0:3000&quot;);        //         the next to load Stateright Explorer.
@@ -1264,8 +1264,8 @@ mod test {
             .actor(RegisterActor::Server(ServerActor {
                 peers: Id::vec_from(vec![0]),
             }))
-            .actor(RegisterActor::Client { server_count: 2 })
-            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
             .checker().spawn_dfs().join()
             .assert_properties();
     }
@@ -1280,9 +1280,9 @@ mod test {
             .actor(RegisterActor::Server(ServerActor {
                 peers: Id::vec_from(vec![0]),
             }))
-            .actor(RegisterActor::Client { server_count: 2 })
-            .actor(RegisterActor::Client { server_count: 2 })
-            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
             .checker()
             .spawn_dfs().join();       // TRY IT: Comment out this line, and uncomment
             //.serve(&quot;0:3000&quot;);        //         the next to load Stateright Explorer.
@@ -1386,9 +1386,10 @@ edition = &quot;2018&quot;
 
 [dependencies]
 env_logger = &quot;0.7&quot;
+num_cpus = &quot;1&quot;
 serde = &quot;1.0&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.25&quot;
+stateright = &quot;0.26&quot;
 </code></pre>
 <h2><a class="header" href="#a-truly-atomic-register" id="a-truly-atomic-register">A Truly Atomic Register</a></h2>
 <p>One problem with the earlier protocol is that reads can observe different
@@ -1581,9 +1582,13 @@ impl Actor for AbdActor {
                             &amp;self.peers,
                             &amp;Internal(Replicate(*req_id, seq, val.clone())));
 
-                        state.seq = seq;
-                        state.val = val;
+                        // Self-send `Replicate`.
+                        if seq &gt; state.seq {
+                            state.seq = seq;
+                            state.val = val;
+                        }
 
+                        // Self-send `AckReplicate`.
                         let mut acks = BTreeSet::default();
                         acks.insert(id);
 
@@ -1606,8 +1611,8 @@ impl Actor for AbdActor {
             }
             Internal(AckReplicate(expected_req_id))
                 if matches!(state.phase,
-                            Some(AbdPhase::Phase2 { request_id, .. })
-                            if request_id == expected_req_id) =&gt;
+                            Some(AbdPhase::Phase2 { request_id, ref acks, .. })
+                            if request_id == expected_req_id &amp;&amp; !acks.contains(&amp;src)) =&gt;
             {
                 let mut state = state.to_mut();
                 if let Some(AbdPhase::Phase2 {
@@ -1634,72 +1639,70 @@ impl Actor for AbdActor {
     }
 }
 </code></pre>
-<p>The test case confirms that this implementation is linearizable. It also
-introduces two new aspects:</p>
-<ol>
-<li>The model contains a <code>within_boundary</code> predicate, which is used to reduce
-the number of visited states while still retaining systematic testing.</li>
-<li>The model is parameterized by a configuration type <code>AbdModelCfg</code>.</li>
-</ol>
-<p>Remember to run the tests with the <code>--release</code> flag if you want to check with a
-larger max clock or number of clients/servers as the state space
-grows rapidly.</p>
+<p>The test case confirms that this implementation is linearizable provided that
+the network does not redeliver messages. Performing thorough model checking may
+take up to several minutes (depending on your system's performance) and will
+only be performed with a <code>--release</code> build.</p>
 <pre><code class="language-rust ignore noplayground">    #[test]
-    fn is_linearizable() {
-        AbdModelCfg { max_clock: 3 }
-            .into_model()
+    fn is_linearizable_quick() {
+        let checker = base_model()
             .actor(RegisterActor::Server(AbdActor {
                 peers: Id::vec_from(vec![1]),
             }))
             .actor(RegisterActor::Server(AbdActor {
                 peers: Id::vec_from(vec![0]),
             }))
-            .actor(RegisterActor::Client { server_count: 2 })
-            .actor(RegisterActor::Client { server_count: 2 })
-            .actor(RegisterActor::Client { server_count: 2 })
-            .checker().spawn_dfs().join()
-            .assert_properties();
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
+            .checker().threads(num_cpus::get()).spawn_dfs().join();
+        checker.assert_properties();
+        assert_eq!(checker.generated_count(), 544);
     }
 
-    struct AbdModelCfg {
-        max_clock: LogicalClock,
+    #[test]
+    #[cfg_attr(debug_assertions, ignore = &quot;enabled for --release only&quot;)]
+    fn is_linearizable() {
+        let checker = base_model()
+            .actor(RegisterActor::Server(AbdActor {
+                peers: Id::vec_from(vec![1, 2]),
+            }))
+            .actor(RegisterActor::Server(AbdActor {
+                peers: Id::vec_from(vec![0, 2]),
+            }))
+            .actor(RegisterActor::Server(AbdActor {
+                peers: Id::vec_from(vec![0, 1]),
+            }))
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
+            .checker().threads(num_cpus::get()).spawn_dfs().join();
+        checker.assert_properties();
+        assert_eq!(checker.generated_count(), 37_168_889);
     }
 
-    impl AbdModelCfg {
-        fn into_model(self)
-            -&gt; ActorModel&lt;
-                RegisterActor&lt;AbdActor&gt;,
-                Self,
-                LinearizabilityTester&lt;Id, Register&lt;char&gt;&gt;&gt;
-        {
-            ActorModel::new(
-                    self,
-                    LinearizabilityTester::new(Register('?'))
-                )
-                .duplicating_network(DuplicatingNetwork::No)
-                .property(Expectation::Always, &quot;linearizable&quot;, |_, state| {
-                    state.history.serialized_history().is_some()
+    fn base_model()
+        -&gt; ActorModel&lt;
+            RegisterActor&lt;AbdActor&gt;,
+            (),
+            LinearizabilityTester&lt;Id, Register&lt;char&gt;&gt;&gt;
+    {
+        ActorModel::new(
+                (),
+                LinearizabilityTester::new(Register('?'))
+            )
+            .duplicating_network(DuplicatingNetwork::No)
+            .property(Expectation::Always, &quot;linearizable&quot;, |_, state| {
+                state.history.serialized_history().is_some()
+            })
+            .property(Expectation::Sometimes, &quot;value chosen&quot;, |_, state| {
+                state.network.iter().any(|e| {
+                    if let RegisterMsg::GetOk(_, value) = e.msg {
+                        return value != '?';
+                    }
+                    return false
                 })
-                .property(Expectation::Sometimes, &quot;value chosen&quot;, |_, state| {
-                    state.network.iter().any(|e| {
-                        if let RegisterMsg::GetOk(_, value) = e.msg {
-                            return value != '?';
-                        }
-                        return false
-                    })
-                })
-                .record_msg_in(RegisterMsg::record_returns)
-                .record_msg_out(RegisterMsg::record_invocations)
-                .within_boundary(|cfg, state| {
-                    state.actor_states.iter().all(|s| {
-                        if let RegisterActorState::Server(s) = &amp;**s {
-                            s.seq.0 &lt;= cfg.max_clock
-                        } else {
-                            true
-                        }
-                    })
-                })
-        }
+            })
+            .record_msg_in(RegisterMsg::record_returns)
+            .record_msg_out(RegisterMsg::record_invocations)
     }
 </code></pre>
 <h2><a class="header" href="#complete-implementation-1" id="complete-implementation-1">Complete Implementation</a></h2>
@@ -1838,9 +1841,13 @@ impl Actor for AbdActor {
                             &amp;self.peers,
                             &amp;Internal(Replicate(*req_id, seq, val.clone())));
 
-                        state.seq = seq;
-                        state.val = val;
+                        // Self-send `Replicate`.
+                        if seq &gt; state.seq {
+                            state.seq = seq;
+                            state.val = val;
+                        }
 
+                        // Self-send `AckReplicate`.
                         let mut acks = BTreeSet::default();
                         acks.insert(id);
 
@@ -1863,8 +1870,8 @@ impl Actor for AbdActor {
             }
             Internal(AckReplicate(expected_req_id))
                 if matches!(state.phase,
-                            Some(AbdPhase::Phase2 { request_id, .. })
-                            if request_id == expected_req_id) =&gt;
+                            Some(AbdPhase::Phase2 { request_id, ref acks, .. })
+                            if request_id == expected_req_id &amp;&amp; !acks.contains(&amp;src)) =&gt;
             {
                 let mut state = state.to_mut();
                 if let Some(AbdPhase::Phase2 {
@@ -1897,61 +1904,65 @@ mod test {
     use stateright::{*, semantics::*, semantics::register::*};
 
     #[test]
-    fn is_linearizable() {
-        AbdModelCfg { max_clock: 3 }
-            .into_model()
+    fn is_linearizable_quick() {
+        let checker = base_model()
             .actor(RegisterActor::Server(AbdActor {
                 peers: Id::vec_from(vec![1]),
             }))
             .actor(RegisterActor::Server(AbdActor {
                 peers: Id::vec_from(vec![0]),
             }))
-            .actor(RegisterActor::Client { server_count: 2 })
-            .actor(RegisterActor::Client { server_count: 2 })
-            .actor(RegisterActor::Client { server_count: 2 })
-            .checker().spawn_dfs().join()
-            .assert_properties();
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
+            .checker().threads(num_cpus::get()).spawn_dfs().join();
+        checker.assert_properties();
+        assert_eq!(checker.generated_count(), 544);
     }
 
-    struct AbdModelCfg {
-        max_clock: LogicalClock,
+    #[test]
+    #[cfg_attr(debug_assertions, ignore = &quot;enabled for --release only&quot;)]
+    fn is_linearizable() {
+        let checker = base_model()
+            .actor(RegisterActor::Server(AbdActor {
+                peers: Id::vec_from(vec![1, 2]),
+            }))
+            .actor(RegisterActor::Server(AbdActor {
+                peers: Id::vec_from(vec![0, 2]),
+            }))
+            .actor(RegisterActor::Server(AbdActor {
+                peers: Id::vec_from(vec![0, 1]),
+            }))
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
+            .checker().threads(num_cpus::get()).spawn_dfs().join();
+        checker.assert_properties();
+        assert_eq!(checker.generated_count(), 37_168_889);
     }
 
-    impl AbdModelCfg {
-        fn into_model(self)
-            -&gt; ActorModel&lt;
-                RegisterActor&lt;AbdActor&gt;,
-                Self,
-                LinearizabilityTester&lt;Id, Register&lt;char&gt;&gt;&gt;
-        {
-            ActorModel::new(
-                    self,
-                    LinearizabilityTester::new(Register('?'))
-                )
-                .duplicating_network(DuplicatingNetwork::No)
-                .property(Expectation::Always, &quot;linearizable&quot;, |_, state| {
-                    state.history.serialized_history().is_some()
+    fn base_model()
+        -&gt; ActorModel&lt;
+            RegisterActor&lt;AbdActor&gt;,
+            (),
+            LinearizabilityTester&lt;Id, Register&lt;char&gt;&gt;&gt;
+    {
+        ActorModel::new(
+                (),
+                LinearizabilityTester::new(Register('?'))
+            )
+            .duplicating_network(DuplicatingNetwork::No)
+            .property(Expectation::Always, &quot;linearizable&quot;, |_, state| {
+                state.history.serialized_history().is_some()
+            })
+            .property(Expectation::Sometimes, &quot;value chosen&quot;, |_, state| {
+                state.network.iter().any(|e| {
+                    if let RegisterMsg::GetOk(_, value) = e.msg {
+                        return value != '?';
+                    }
+                    return false
                 })
-                .property(Expectation::Sometimes, &quot;value chosen&quot;, |_, state| {
-                    state.network.iter().any(|e| {
-                        if let RegisterMsg::GetOk(_, value) = e.msg {
-                            return value != '?';
-                        }
-                        return false
-                    })
-                })
-                .record_msg_in(RegisterMsg::record_returns)
-                .record_msg_out(RegisterMsg::record_invocations)
-                .within_boundary(|cfg, state| {
-                    state.actor_states.iter().all(|s| {
-                        if let RegisterActorState::Server(s) = &amp;**s {
-                            s.seq.0 &lt;= cfg.max_clock
-                        } else {
-                            true
-                        }
-                    })
-                })
-        }
+            })
+            .record_msg_in(RegisterMsg::record_returns)
+            .record_msg_out(RegisterMsg::record_invocations)
     }
 }
 
@@ -1986,6 +1997,10 @@ disagree. See if you can implement this optimization as well.</p>
 &quot;all agree&quot; versus &quot;not all agree&quot; slightly differently to avoid dropping
 requests in some cases. Can you see why?</p>
 </blockquote>
+</li>
+<li>
+<p>The current implementation also assumes that the network does not redeliver
+messages. Revise it to account for potential message redelivery.</p>
 </li>
 </ol>
 <h2><a class="header" href="#summary-3" id="summary-3">Summary</a></h2>
@@ -2383,7 +2398,7 @@ edition = &quot;2018&quot;
 
 [dependencies]
 num_cpus = &quot;1&quot;
-stateright = &quot;0.25&quot;
+stateright = &quot;0.26&quot;
 </code></pre>
 </td></tr></table>
 <p>TLA+ can be run from the command line using a tool such as

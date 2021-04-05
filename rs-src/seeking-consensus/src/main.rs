@@ -125,8 +125,8 @@ mod test {
             .actor(RegisterActor::Server(ServerActor {
                 peers: Id::vec_from(vec![0]),
             }))
-            .actor(RegisterActor::Client { server_count: 2 })
-            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
             .checker().spawn_dfs().join()
             .assert_properties();
     }
@@ -141,9 +141,9 @@ mod test {
             .actor(RegisterActor::Server(ServerActor {
                 peers: Id::vec_from(vec![0]),
             }))
-            .actor(RegisterActor::Client { server_count: 2 })
-            .actor(RegisterActor::Client { server_count: 2 })
-            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
             .checker()
             .spawn_dfs().join();       // TRY IT: Comment out this line, and uncomment
             //.serve("0:3000");        //         the next to load Stateright Explorer.

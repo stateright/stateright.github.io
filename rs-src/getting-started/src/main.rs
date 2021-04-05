@@ -48,7 +48,7 @@ mod test {
                 LinearizabilityTester::new(Register('?'))
             )
             .actor(RegisterActor::Server(ServerActor))
-            .actor(RegisterActor::Client { server_count: 1 })
+            .actor(RegisterActor::Client { put_count: 2, server_count: 1 })
             .property(Expectation::Always, "linearizable", |_, state| {
                 state.history.serialized_history().is_some()
             })

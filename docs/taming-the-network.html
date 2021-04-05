@@ -184,7 +184,7 @@ edition = &quot;2018&quot;
 [dependencies]
 env_logger = &quot;0.7&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.25&quot;
+stateright = &quot;0.26&quot;
 </code></pre>
 <p>Here is the complete implementation for <code>main.rs</code>, explained below:</p>
 <pre><code class="language-rust ignore noplayground">
@@ -246,7 +246,7 @@ mod test {
         // Works with 1 client.
         base_model()
             .actor(RegisterActor::Server(ServerActor))
-            .actor(RegisterActor::Client { server_count: 1 })
+            .actor(RegisterActor::Client { put_count: 2, server_count: 1 })
             .checker().spawn_dfs().join()
             .assert_properties();
 
@@ -254,8 +254,8 @@ mod test {
         // (TIP: test with `--release` mode for more clients)
         base_model()
             .actor(RegisterActor::Server(ServerActor))
-            .actor(RegisterActor::Client { server_count: 1 })
-            .actor(RegisterActor::Client { server_count: 1 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 1 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 1 })
             .checker().spawn_dfs().join()
             .assert_properties();
     }
@@ -265,7 +265,7 @@ mod test {
         let checker = base_model()
             .actor(RegisterActor::Server(ServerActor))
             .actor(RegisterActor::Server(ServerActor))
-            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 2, server_count: 2 })
             .checker().spawn_dfs().join();
         //checker.assert_properties(); // TRY IT: Uncomment this line, and the test will fail.
         checker.assert_discovery(&quot;linearizable&quot;, vec![
@@ -369,7 +369,7 @@ generally agree upon the last value they received.</p>
         // Works with 1 client.
         base_model()
             .actor(RegisterActor::Server(ServerActor))
-            .actor(RegisterActor::Client { server_count: 1 })
+            .actor(RegisterActor::Client { put_count: 2, server_count: 1 })
             .checker().spawn_dfs().join()
             .assert_properties();
 
@@ -377,8 +377,8 @@ generally agree upon the last value they received.</p>
         // (TIP: test with `--release` mode for more clients)
         base_model()
             .actor(RegisterActor::Server(ServerActor))
-            .actor(RegisterActor::Client { server_count: 1 })
-            .actor(RegisterActor::Client { server_count: 1 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 1 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 1 })
             .checker().spawn_dfs().join()
             .assert_properties();
     }
@@ -388,7 +388,7 @@ generally agree upon the last value they received.</p>
         let checker = base_model()
             .actor(RegisterActor::Server(ServerActor))
             .actor(RegisterActor::Server(ServerActor))
-            .actor(RegisterActor::Client { server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 2, server_count: 2 })
             .checker().spawn_dfs().join();
         //checker.assert_properties(); // TRY IT: Uncomment this line, and the test will fail.
         checker.assert_discovery(&quot;linearizable&quot;, vec![

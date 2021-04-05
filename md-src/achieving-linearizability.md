@@ -109,16 +109,10 @@ to compose a system of different actor types.
 {{#include ../rs-src/achieving-linearizability/src/main.rs:actor}}
 ```
 
-The test case confirms that this implementation is linearizable. It also
-introduces two new aspects:
-
-1. The model contains a `within_boundary` predicate, which is used to reduce
-   the number of visited states while still retaining systematic testing.
-2. The model is parameterized by a configuration type `AbdModelCfg`.
-
-Remember to run the tests with the `--release` flag if you want to check with a
-larger max clock or number of clients/servers as the state space
-grows rapidly.
+The test case confirms that this implementation is linearizable provided that
+the network does not redeliver messages. Performing thorough model checking may
+take up to several minutes (depending on your system's performance) and will
+only be performed with a `--release` build.
 
 ```rust,ignore,noplayground
 {{#include ../rs-src/achieving-linearizability/src/main.rs:test}}
@@ -143,6 +137,8 @@ Here is the complete implementation for `main.rs`:
    > TIP: This is a slightly more complex optimization because we need to treat
    "all agree" versus "not all agree" slightly differently to avoid dropping
    requests in some cases. Can you see why?
+3. The current implementation also assumes that the network does not redeliver
+   messages. Revise it to account for potential message redelivery.
 
 ## Summary
 

@@ -147,9 +147,13 @@ impl Actor for AbdActor {
                             &self.peers,
                             &Internal(Replicate(*req_id, seq, val.clone())));
 
-                        state.seq = seq;
-                        state.val = val;
+                        // Self-send `Replicate`.
+                        if seq > state.seq {
+                            state.seq = seq;
+                            state.val = val;
+                        }
 
+                        // Self-send `AckReplicate`.
                         let mut acks = BTreeSet::default();
                         acks.insert(id);
 
@@ -172,8 +176,8 @@ impl Actor for AbdActor {
             }
             Internal(AckReplicate(expected_req_id))
                 if matches!(state.phase,
-                            Some(AbdPhase::Phase2 { request_id, .. })
-                            if request_id == expected_req_id) =>
+                            Some(AbdPhase::Phase2 { request_id, ref acks, .. })
+                            if request_id == expected_req_id && !acks.contains(&src)) =>
             {
                 let mut state = state.to_mut();
                 if let Some(AbdPhase::Phase2 {
@@ -208,61 +212,65 @@ mod test {
 
     // ANCHOR: test
     #[test]
-    fn is_linearizable() {
-        AbdModelCfg { max_clock: 3 }
-            .into_model()
+    fn is_linearizable_quick() {
+        let checker = base_model()
             .actor(RegisterActor::Server(AbdActor {
                 peers: Id::vec_from(vec![1]),
             }))
             .actor(RegisterActor::Server(AbdActor {
                 peers: Id::vec_from(vec![0]),
             }))
-            .actor(RegisterActor::Client { server_count: 2 })
-            .actor(RegisterActor::Client { server_count: 2 })
-            .actor(RegisterActor::Client { server_count: 2 })
-            .checker().spawn_dfs().join()
-            .assert_properties();
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
+            .checker().threads(num_cpus::get()).spawn_dfs().join();
+        checker.assert_properties();
+        assert_eq!(checker.generated_count(), 544);
     }
 
-    struct AbdModelCfg {
-        max_clock: LogicalClock,
+    #[test]
+    #[cfg_attr(debug_assertions, ignore = "enabled for --release only")]
+    fn is_linearizable() {
+        let checker = base_model()
+            .actor(RegisterActor::Server(AbdActor {
+                peers: Id::vec_from(vec![1, 2]),
+            }))
+            .actor(RegisterActor::Server(AbdActor {
+                peers: Id::vec_from(vec![0, 2]),
+            }))
+            .actor(RegisterActor::Server(AbdActor {
+                peers: Id::vec_from(vec![0, 1]),
+            }))
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
+            .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
+            .checker().threads(num_cpus::get()).spawn_dfs().join();
+        checker.assert_properties();
+        assert_eq!(checker.generated_count(), 37_168_889);
     }
 
-    impl AbdModelCfg {
-        fn into_model(self)
-            -> ActorModel<
-                RegisterActor<AbdActor>,
-                Self,
-                LinearizabilityTester<Id, Register<char>>>
-        {
-            ActorModel::new(
-                    self,
-                    LinearizabilityTester::new(Register('?'))
-                )
-                .duplicating_network(DuplicatingNetwork::No)
-                .property(Expectation::Always, "linearizable", |_, state| {
-                    state.history.serialized_history().is_some()
+    fn base_model()
+        -> ActorModel<
+            RegisterActor<AbdActor>,
+            (),
+            LinearizabilityTester<Id, Register<char>>>
+    {
+        ActorModel::new(
+                (),
+                LinearizabilityTester::new(Register('?'))
+            )
+            .duplicating_network(DuplicatingNetwork::No)
+            .property(Expectation::Always, "linearizable", |_, state| {
+                state.history.serialized_history().is_some()
+            })
+            .property(Expectation::Sometimes, "value chosen", |_, state| {
+                state.network.iter().any(|e| {
+                    if let RegisterMsg::GetOk(_, value) = e.msg {
+                        return value != '?';
+                    }
+                    return false
                 })
-                .property(Expectation::Sometimes, "value chosen", |_, state| {
-                    state.network.iter().any(|e| {
-                        if let RegisterMsg::GetOk(_, value) = e.msg {
-                            return value != '?';
-                        }
-                        return false
-                    })
-                })
-                .record_msg_in(RegisterMsg::record_returns)
-                .record_msg_out(RegisterMsg::record_invocations)
-                .within_boundary(|cfg, state| {
-                    state.actor_states.iter().all(|s| {
-                        if let RegisterActorState::Server(s) = &**s {
-                            s.seq.0 <= cfg.max_clock
-                        } else {
-                            true
-                        }
-                    })
-                })
-        }
+            })
+            .record_msg_in(RegisterMsg::record_returns)
+            .record_msg_out(RegisterMsg::record_invocations)
     }
     // ANCHOR_END: test
 }
