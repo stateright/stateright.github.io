@@ -49,6 +49,14 @@ behavior, whereas Stateright can systematically enumerate all possible
 behaviors within a specified model of the system.
 
 We'll jump right in with a motivating example in the first chapter, [Getting
-Started](./getting-started.md). Please see the [Stateright YouTube
-channel](https://www.youtube.com/playlist?list=PLUhyBsVvEJjaF1VpNhLRfIA4E7CFPirmz)
-if you prefer starting with a video introduction.
+Started](./getting-started.md). Alternatively:
+- See the [Stateright YouTube
+  channel](https://www.youtube.com/playlist?list=PLUhyBsVvEJjaF1VpNhLRfIA4E7CFPirmz)
+  if you prefer a quick video introduction.
+- For a broader overview of Stateright see the related Distributed Systems
+  Reading Group [special
+  session](http://charap.co/building-distributed-systems-with-stateright/).
+  The [slides](https://www.stateright.rs/2021-03-30) are available on this site
+  (`Esc` key zooms out, and note that there are `Up`/`Down` slides). Murat
+  Demirbas also wrote an [associated blog
+  post](https://muratbuffalo.blogspot.com/2021/04/building-distributed-systems-with.html)).
