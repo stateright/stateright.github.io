@@ -59,4 +59,4 @@ Started](./getting-started.md). Alternatively:
   The [slides](https://www.stateright.rs/2021-03-30) are available on this site
   (`Esc` key zooms out, and note that there are `Up`/`Down` slides). Murat
   Demirbas also wrote an [associated blog
-  post](https://muratbuffalo.blogspot.com/2021/04/building-distributed-systems-with.html)).
+  post](https://muratbuffalo.blogspot.com/2021/04/building-distributed-systems-with.html).
