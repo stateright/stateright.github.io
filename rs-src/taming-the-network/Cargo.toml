@@ -6,4 +6,4 @@ edition = "2018"
 [dependencies]
 env_logger = "0.7"
 serde_json = "1.0"
-stateright = "0.26"
+stateright = "0.27"

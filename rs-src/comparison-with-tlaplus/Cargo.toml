@@ -5,4 +5,4 @@ edition = "2018"
 
 [dependencies]
 num_cpus = "1"
-stateright = "0.26"
+stateright = "0.27"
