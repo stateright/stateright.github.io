@@ -190,7 +190,7 @@ env_logger = &quot;0.7&quot;
 num_cpus = &quot;1&quot;
 serde = &quot;1.0&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.27&quot;
+stateright = &quot;0.28&quot;
 </code></pre>
 <h2><a class="header" href="#a-truly-atomic-register" id="a-truly-atomic-register">A Truly Atomic Register</a></h2>
 <p>One problem with the earlier protocol is that reads can observe different
@@ -457,7 +457,7 @@ only be performed with a <code>--release</code> build.</p>
             .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
             .checker().threads(num_cpus::get()).spawn_dfs().join();
         checker.assert_properties();
-        assert_eq!(checker.generated_count(), 544);
+        assert_eq!(checker.unique_state_count(), 544);
     }
 
     #[test]
@@ -477,7 +477,7 @@ only be performed with a <code>--release</code> build.</p>
             .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
             .checker().threads(num_cpus::get()).spawn_dfs().join();
         checker.assert_properties();
-        assert_eq!(checker.generated_count(), 37_168_889);
+        assert_eq!(checker.unique_state_count(), 37_168_889);
     }
 
     fn base_model()
@@ -717,7 +717,7 @@ mod test {
             .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
             .checker().threads(num_cpus::get()).spawn_dfs().join();
         checker.assert_properties();
-        assert_eq!(checker.generated_count(), 544);
+        assert_eq!(checker.unique_state_count(), 544);
     }
 
     #[test]
@@ -737,7 +737,7 @@ mod test {
             .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
             .checker().threads(num_cpus::get()).spawn_dfs().join();
         checker.assert_properties();
-        assert_eq!(checker.generated_count(), 37_168_889);
+        assert_eq!(checker.unique_state_count(), 37_168_889);
     }
 
     fn base_model()

@@ -224,7 +224,7 @@ mod test {
             .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
             .checker().threads(num_cpus::get()).spawn_dfs().join();
         checker.assert_properties();
-        assert_eq!(checker.generated_count(), 544);
+        assert_eq!(checker.unique_state_count(), 544);
     }
 
     #[test]
@@ -244,7 +244,7 @@ mod test {
             .actor(RegisterActor::Client { put_count: 1, server_count: 2 })
             .checker().threads(num_cpus::get()).spawn_dfs().join();
         checker.assert_properties();
-        assert_eq!(checker.generated_count(), 37_168_889);
+        assert_eq!(checker.unique_state_count(), 37_168_889);
     }
 
     fn base_model()
