@@ -109,10 +109,12 @@ mod test {
                 state.history.serialized_history().is_some()
             })
             .property(Expectation::Sometimes, "get succeeds", |_, state| {
-                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::GetOk(_, _)))
+                state.network.iter_deliverable()
+                    .any(|e| matches!(e.msg, RegisterMsg::GetOk(_, _)))
             })
             .property(Expectation::Sometimes, "put succeeds", |_, state| {
-                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::PutOk(_)))
+                state.network.iter_deliverable()
+                    .any(|e| matches!(e.msg, RegisterMsg::PutOk(_)))
             })
             .record_msg_in(RegisterMsg::record_returns)
             .record_msg_out(RegisterMsg::record_invocations)

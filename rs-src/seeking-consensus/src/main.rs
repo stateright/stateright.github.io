@@ -179,9 +179,9 @@ mod test {
                 state.history.serialized_history().is_some()
             })
             .property(Expectation::Sometimes, "value chosen", |_, state| {
-                state.network.iter().any(|e| {
+                state.network.iter_deliverable().any(|e| {
                     if let RegisterMsg::GetOk(_, value) = e.msg {
-                        return value != '?';
+                        return *value != '?';
                     }
                     return false
                 })
