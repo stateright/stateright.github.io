@@ -190,7 +190,7 @@ env_logger = &quot;0.7&quot;
 num_cpus = &quot;1&quot;
 serde = &quot;1.0&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.28&quot;
+stateright = &quot;0.29&quot;
 </code></pre>
 <h2><a class="header" href="#a-truly-atomic-register" id="a-truly-atomic-register">A Truly Atomic Register</a></h2>
 <p>One problem with the earlier protocol is that reads can observe different
@@ -490,14 +490,14 @@ only be performed with a <code>--release</code> build.</p>
                 (),
                 LinearizabilityTester::new(Register('?'))
             )
-            .duplicating_network(DuplicatingNetwork::No)
+            .init_network(Network::new_unordered_nonduplicating([]))
             .property(Expectation::Always, &quot;linearizable&quot;, |_, state| {
                 state.history.serialized_history().is_some()
             })
             .property(Expectation::Sometimes, &quot;value chosen&quot;, |_, state| {
-                state.network.iter().any(|e| {
+                state.network.iter_deliverable().any(|e| {
                     if let RegisterMsg::GetOk(_, value) = e.msg {
-                        return value != '?';
+                        return *value != '?';
                     }
                     return false
                 })
@@ -750,14 +750,14 @@ mod test {
                 (),
                 LinearizabilityTester::new(Register('?'))
             )
-            .duplicating_network(DuplicatingNetwork::No)
+            .init_network(Network::new_unordered_nonduplicating([]))
             .property(Expectation::Always, &quot;linearizable&quot;, |_, state| {
                 state.history.serialized_history().is_some()
             })
             .property(Expectation::Sometimes, &quot;value chosen&quot;, |_, state| {
-                state.network.iter().any(|e| {
+                state.network.iter_deliverable().any(|e| {
                     if let RegisterMsg::GetOk(_, value) = e.msg {
-                        return value != '?';
+                        return *value != '?';
                     }
                     return false
                 })

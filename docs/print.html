@@ -291,7 +291,7 @@ edition = &quot;2018&quot;
 [dependencies]
 env_logger = &quot;0.7&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.28&quot;
+stateright = &quot;0.29&quot;
 </code></pre>
 <p>Here is the complete implementation for <code>main.rs</code>. Copy-paste it into your own
 file. The subsequent sections will explain further.</p>
@@ -346,10 +346,12 @@ mod test {
                 state.history.serialized_history().is_some()
             })
             .property(Expectation::Sometimes, &quot;get succeeds&quot;, |_, state| {
-                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::GetOk(_, _)))
+                state.network.iter_deliverable()
+                    .any(|e| matches!(e.msg, RegisterMsg::GetOk(_, _)))
             })
             .property(Expectation::Sometimes, &quot;put succeeds&quot;, |_, state| {
-                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::PutOk(_)))
+                state.network.iter_deliverable()
+                    .any(|e| matches!(e.msg, RegisterMsg::PutOk(_)))
             })
             .record_msg_in(RegisterMsg::record_returns)
             .record_msg_out(RegisterMsg::record_invocations)
@@ -512,10 +514,12 @@ values without coordinating with one another.</p>
                 state.history.serialized_history().is_some()
             })
             .property(Expectation::Sometimes, &quot;get succeeds&quot;, |_, state| {
-                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::GetOk(_, _)))
+                state.network.iter_deliverable()
+                    .any(|e| matches!(e.msg, RegisterMsg::GetOk(_, _)))
             })
             .property(Expectation::Sometimes, &quot;put succeeds&quot;, |_, state| {
-                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::PutOk(_)))
+                state.network.iter_deliverable()
+                    .any(|e| matches!(e.msg, RegisterMsg::PutOk(_)))
             })
             .record_msg_in(RegisterMsg::record_returns)
             .record_msg_out(RegisterMsg::record_invocations)
@@ -631,7 +635,7 @@ edition = &quot;2018&quot;
 [dependencies]
 env_logger = &quot;0.7&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.28&quot;
+stateright = &quot;0.29&quot;
 </code></pre>
 <p>Here is the complete implementation for <code>main.rs</code>, explained below:</p>
 <pre><code class="language-rust ignore noplayground">
@@ -739,10 +743,12 @@ mod test {
                 state.history.serialized_history().is_some()
             })
             .property(Expectation::Sometimes, &quot;get succeeds&quot;, |_, state| {
-                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::GetOk(_, _)))
+                state.network.iter_deliverable()
+                    .any(|e| matches!(e.msg, RegisterMsg::GetOk(_, _)))
             })
             .property(Expectation::Sometimes, &quot;put succeeds&quot;, |_, state| {
-                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::PutOk(_)))
+                state.network.iter_deliverable()
+                    .any(|e| matches!(e.msg, RegisterMsg::PutOk(_)))
             })
             .record_msg_in(RegisterMsg::record_returns)
             .record_msg_out(RegisterMsg::record_invocations)
@@ -863,10 +869,12 @@ generally agree upon the last value they received.</p>
                 state.history.serialized_history().is_some()
             })
             .property(Expectation::Sometimes, &quot;get succeeds&quot;, |_, state| {
-                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::GetOk(_, _)))
+                state.network.iter_deliverable()
+                    .any(|e| matches!(e.msg, RegisterMsg::GetOk(_, _)))
             })
             .property(Expectation::Sometimes, &quot;put succeeds&quot;, |_, state| {
-                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::PutOk(_)))
+                state.network.iter_deliverable()
+                    .any(|e| matches!(e.msg, RegisterMsg::PutOk(_)))
             })
             .record_msg_in(RegisterMsg::record_returns)
             .record_msg_out(RegisterMsg::record_invocations)
@@ -923,7 +931,7 @@ edition = &quot;2018&quot;
 env_logger = &quot;0.7&quot;
 serde = &quot;1.0&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.28&quot;
+stateright = &quot;0.29&quot;
 </code></pre>
 <p>By now you have the hang of implementing basic actor systems in Stateright, so
 we'll defer the full <code>main.rs</code> source code listing until later in the chapter.</p>
@@ -1101,9 +1109,9 @@ implementing distributed systems.</p>
                 state.history.serialized_history().is_some()
             })
             .property(Expectation::Sometimes, &quot;value chosen&quot;, |_, state| {
-                state.network.iter().any(|e| {
+                state.network.iter_deliverable().any(|e| {
                     if let RegisterMsg::GetOk(_, value) = e.msg {
-                        return value != '?';
+                        return *value != '?';
                     }
                     return false
                 })
@@ -1328,9 +1336,9 @@ mod test {
                 state.history.serialized_history().is_some()
             })
             .property(Expectation::Sometimes, &quot;value chosen&quot;, |_, state| {
-                state.network.iter().any(|e| {
+                state.network.iter_deliverable().any(|e| {
                     if let RegisterMsg::GetOk(_, value) = e.msg {
-                        return value != '?';
+                        return *value != '?';
                     }
                     return false
                 })
@@ -1399,7 +1407,7 @@ env_logger = &quot;0.7&quot;
 num_cpus = &quot;1&quot;
 serde = &quot;1.0&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.28&quot;
+stateright = &quot;0.29&quot;
 </code></pre>
 <h2><a class="header" href="#a-truly-atomic-register" id="a-truly-atomic-register">A Truly Atomic Register</a></h2>
 <p>One problem with the earlier protocol is that reads can observe different
@@ -1699,14 +1707,14 @@ only be performed with a <code>--release</code> build.</p>
                 (),
                 LinearizabilityTester::new(Register('?'))
             )
-            .duplicating_network(DuplicatingNetwork::No)
+            .init_network(Network::new_unordered_nonduplicating([]))
             .property(Expectation::Always, &quot;linearizable&quot;, |_, state| {
                 state.history.serialized_history().is_some()
             })
             .property(Expectation::Sometimes, &quot;value chosen&quot;, |_, state| {
-                state.network.iter().any(|e| {
+                state.network.iter_deliverable().any(|e| {
                     if let RegisterMsg::GetOk(_, value) = e.msg {
-                        return value != '?';
+                        return *value != '?';
                     }
                     return false
                 })
@@ -1959,14 +1967,14 @@ mod test {
                 (),
                 LinearizabilityTester::new(Register('?'))
             )
-            .duplicating_network(DuplicatingNetwork::No)
+            .init_network(Network::new_unordered_nonduplicating([]))
             .property(Expectation::Always, &quot;linearizable&quot;, |_, state| {
                 state.history.serialized_history().is_some()
             })
             .property(Expectation::Sometimes, &quot;value chosen&quot;, |_, state| {
-                state.network.iter().any(|e| {
+                state.network.iter_deliverable().any(|e| {
                     if let RegisterMsg::GetOk(_, value) = e.msg {
-                        return value != '?';
+                        return *value != '?';
                     }
                     return false
                 })
@@ -2408,7 +2416,7 @@ edition = &quot;2018&quot;
 
 [dependencies]
 num_cpus = &quot;1&quot;
-stateright = &quot;0.28&quot;
+stateright = &quot;0.29&quot;
 </code></pre>
 </td></tr></table>
 <p>TLA+ can be run from the command line using a tool such as

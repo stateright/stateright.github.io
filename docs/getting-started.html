@@ -230,7 +230,7 @@ edition = &quot;2018&quot;
 [dependencies]
 env_logger = &quot;0.7&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.28&quot;
+stateright = &quot;0.29&quot;
 </code></pre>
 <p>Here is the complete implementation for <code>main.rs</code>. Copy-paste it into your own
 file. The subsequent sections will explain further.</p>
@@ -285,10 +285,12 @@ mod test {
                 state.history.serialized_history().is_some()
             })
             .property(Expectation::Sometimes, &quot;get succeeds&quot;, |_, state| {
-                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::GetOk(_, _)))
+                state.network.iter_deliverable()
+                    .any(|e| matches!(e.msg, RegisterMsg::GetOk(_, _)))
             })
             .property(Expectation::Sometimes, &quot;put succeeds&quot;, |_, state| {
-                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::PutOk(_)))
+                state.network.iter_deliverable()
+                    .any(|e| matches!(e.msg, RegisterMsg::PutOk(_)))
             })
             .record_msg_in(RegisterMsg::record_returns)
             .record_msg_out(RegisterMsg::record_invocations)
@@ -451,10 +453,12 @@ values without coordinating with one another.</p>
                 state.history.serialized_history().is_some()
             })
             .property(Expectation::Sometimes, &quot;get succeeds&quot;, |_, state| {
-                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::GetOk(_, _)))
+                state.network.iter_deliverable()
+                    .any(|e| matches!(e.msg, RegisterMsg::GetOk(_, _)))
             })
             .property(Expectation::Sometimes, &quot;put succeeds&quot;, |_, state| {
-                state.network.iter().any(|e| matches!(e.msg, RegisterMsg::PutOk(_)))
+                state.network.iter_deliverable()
+                    .any(|e| matches!(e.msg, RegisterMsg::PutOk(_)))
             })
             .record_msg_in(RegisterMsg::record_returns)
             .record_msg_out(RegisterMsg::record_invocations)

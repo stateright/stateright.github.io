@@ -190,7 +190,7 @@ edition = &quot;2018&quot;
 env_logger = &quot;0.7&quot;
 serde = &quot;1.0&quot;
 serde_json = &quot;1.0&quot;
-stateright = &quot;0.28&quot;
+stateright = &quot;0.29&quot;
 </code></pre>
 <p>By now you have the hang of implementing basic actor systems in Stateright, so
 we'll defer the full <code>main.rs</code> source code listing until later in the chapter.</p>
@@ -368,9 +368,9 @@ implementing distributed systems.</p>
                 state.history.serialized_history().is_some()
             })
             .property(Expectation::Sometimes, &quot;value chosen&quot;, |_, state| {
-                state.network.iter().any(|e| {
+                state.network.iter_deliverable().any(|e| {
                     if let RegisterMsg::GetOk(_, value) = e.msg {
-                        return value != '?';
+                        return *value != '?';
                     }
                     return false
                 })
@@ -595,9 +595,9 @@ mod test {
                 state.history.serialized_history().is_some()
             })
             .property(Expectation::Sometimes, &quot;value chosen&quot;, |_, state| {
-                state.network.iter().any(|e| {
+                state.network.iter_deliverable().any(|e| {
                     if let RegisterMsg::GetOk(_, value) = e.msg {
-                        return value != '?';
+                        return *value != '?';
                     }
                     return false
                 })
