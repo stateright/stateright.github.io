@@ -20,6 +20,7 @@ struct ActorState {
 impl Actor for ServerActor {
     type Msg = RegisterMsg<RequestId, char, ()>;
     type State = ActorState;
+    type Timer = ();
 
     fn on_start(&self, _id: Id, _o: &mut Out<Self>) -> Self::State {
         ActorState {

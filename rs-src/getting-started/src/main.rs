@@ -12,6 +12,7 @@ struct ServerActor;
 impl Actor for ServerActor {
     type Msg = RegisterMsg<RequestId, char, ()>;
     type State = char;
+    type Timer = ();
 
     fn on_start(&self, _id: Id, _o: &mut Out<Self>) -> Self::State {
         '?' // default value for the register

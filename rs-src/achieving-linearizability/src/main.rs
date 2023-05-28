@@ -68,6 +68,7 @@ struct AbdActor {
 impl Actor for AbdActor {
     type Msg = RegisterMsg<RequestId, Value, AbdMsg>;
     type State = AbdState;
+    type Timer = ();
 
     fn on_start(&self, _id: Id, _o: &mut Out<Self>) -> Self::State {
         AbdState {
